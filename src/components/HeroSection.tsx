@@ -187,7 +187,7 @@ export const HeroSection: React.FC = () => {
             {/* Central Compact Logo Shield / Container */}
             <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-2xl p-0.5 bg-gradient-to-b from-sky-400/30 via-blue-600/20 to-indigo-600/40 backdrop-blur-xl shadow-[0_0_25px_rgba(56,189,248,0.2)] border border-sky-400/40 group-hover:scale-105 group-hover:shadow-[0_0_35px_rgba(56,189,248,0.35)] transition-all duration-300 flex items-center justify-center overflow-hidden">
               <div className="w-full h-full bg-[#080d1a] rounded-[14px] flex items-center justify-center overflow-hidden p-1.5 relative">
-                {siteSettings.logoUrl ? (
+                {siteSettings.logoUrl && siteSettings.logoUrl.trim().length > 0 ? (
                   <img
                     src={siteSettings.logoUrl}
                     alt={siteName}

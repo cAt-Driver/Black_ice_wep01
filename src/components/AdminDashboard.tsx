@@ -793,7 +793,7 @@ export const AdminDashboard: React.FC = () => {
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex items-center gap-3">
                           <img
-                            src={proj.coverImage}
+                            src={proj.coverImage && proj.coverImage.trim().length > 0 ? proj.coverImage : "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=400&q=80"}
                             alt={proj.titleAr}
                             className="w-14 h-14 rounded-xl object-cover border border-slate-700"
                           />
@@ -1216,7 +1216,7 @@ export const AdminDashboard: React.FC = () => {
                     {/* Cover Preview */}
                     <div className="md:col-span-4 flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-900/80 border border-slate-800 text-center">
                       <div className="relative w-full h-32 rounded-xl overflow-hidden border-2 border-sky-400/50 shadow-lg shadow-blue-500/20 bg-slate-950">
-                        {coverImage ? (
+                        {coverImage && coverImage.trim().length > 0 ? (
                           <img
                             src={coverImage}
                             alt="Cover Preview"
@@ -1404,7 +1404,7 @@ export const AdminDashboard: React.FC = () => {
 
                   {/* Screenshots Grid Preview */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                    {galleryImages.map((imgUrl, idx) => (
+                    {galleryImages.filter((img) => typeof img === "string" && img.trim().length > 0).map((imgUrl, idx) => (
                       <div key={idx} className="relative rounded-xl overflow-hidden border border-slate-700 group h-24 bg-slate-950">
                         <img src={imgUrl} alt={`Screenshot ${idx + 1}`} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -1687,7 +1687,7 @@ export const AdminDashboard: React.FC = () => {
                     <div>
                       <div className="flex items-center gap-3 mb-2">
                         <img
-                          src={u.avatar}
+                          src={u.avatar && u.avatar.trim().length > 0 ? u.avatar : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"}
                           alt={u.name}
                           className="w-10 h-10 rounded-full object-cover border border-slate-700"
                         />
@@ -1806,7 +1806,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="sm:col-span-2 p-3 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
                       <div className="flex items-center justify-between">
                         <label className="text-xs font-semibold text-slate-200">الصورة الرمزية للمستخدم (رفع من الجهاز أو اختيار):</label>
-                        {userAvatar && (
+                        {userAvatar && userAvatar.trim().length > 0 && (
                           <div className="w-8 h-8 rounded-full overflow-hidden border border-sky-400">
                             <img src={userAvatar} alt="User Preview" className="w-full h-full object-cover" />
                           </div>
@@ -2073,7 +2073,7 @@ export const AdminDashboard: React.FC = () => {
                       <div className="absolute inset-0 bg-sky-500/20 blur-2xl rounded-full" />
                       <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-3xl p-1 bg-gradient-to-b from-sky-400/40 via-blue-600/30 to-indigo-600/40 border border-sky-400/50 shadow-2xl shadow-blue-500/30 flex items-center justify-center overflow-hidden">
                         <div className="w-full h-full bg-[#080d1a] rounded-[22px] flex items-center justify-center p-2">
-                          {siteForm.logoUrl ? (
+                          {siteForm.logoUrl && siteForm.logoUrl.trim().length > 0 ? (
                             <img
                               src={siteForm.logoUrl}
                               alt="Logo Preview"
@@ -2334,7 +2334,7 @@ export const AdminDashboard: React.FC = () => {
                   <div key={m.id} className="p-4 rounded-2xl bg-[#0c1427] border border-slate-800 flex flex-col justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-3 mb-2">
-                        <img src={m.avatar} alt={m.nameAr} className="w-12 h-12 rounded-xl object-cover border border-slate-700" />
+                        <img src={m.avatar && m.avatar.trim().length > 0 ? m.avatar : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"} alt={m.nameAr} className="w-12 h-12 rounded-xl object-cover border border-slate-700" />
                         <div>
                           <h4 className="text-xs font-bold text-white">{m.nameAr}</h4>
                           <span className="text-[11px] text-sky-400">{m.roleAr}</span>
@@ -2400,7 +2400,7 @@ export const AdminDashboard: React.FC = () => {
                       {/* Avatar Preview */}
                       <div className="md:col-span-4 flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-900/80 border border-slate-800 text-center">
                         <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-2 border-sky-400/50 shadow-lg shadow-blue-500/20 bg-slate-950">
-                          {memberForm.avatar ? (
+                          {memberForm.avatar && memberForm.avatar.trim().length > 0 ? (
                             <img
                               src={memberForm.avatar}
                               alt="Avatar Preview"
@@ -2677,7 +2677,7 @@ export const AdminDashboard: React.FC = () => {
                     <div>
                       <div className="flex items-center gap-3 mb-2">
                         <img
-                          src={t.avatar}
+                          src={t.avatar && t.avatar.trim().length > 0 ? t.avatar : "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80"}
                           alt={t.clientNameAr}
                           className="w-11 h-11 rounded-xl object-cover border border-slate-700"
                         />
@@ -2795,7 +2795,7 @@ export const AdminDashboard: React.FC = () => {
                       </label>
                       <div className="flex flex-col sm:flex-row items-center gap-3">
                         <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 shrink-0">
-                          {testimonialForm.avatar ? (
+                          {testimonialForm.avatar && testimonialForm.avatar.trim().length > 0 ? (
                             <img src={testimonialForm.avatar} alt="Client" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-600">

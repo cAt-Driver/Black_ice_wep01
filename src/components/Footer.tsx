@@ -35,7 +35,7 @@ export const Footer: React.FC = () => {
           <div className="md:col-span-2 space-y-3.5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-sky-400 overflow-hidden">
-                {siteSettings.logoUrl ? (
+                {siteSettings.logoUrl && siteSettings.logoUrl.trim().length > 0 ? (
                   <img src={siteSettings.logoUrl} alt="Logo" className="w-full h-full object-cover" />
                 ) : (
                   <Terminal className="w-5 h-5" />

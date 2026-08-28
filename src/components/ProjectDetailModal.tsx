@@ -39,11 +39,15 @@ export const ProjectDetailModal: React.FC = () => {
   const title = language === "ar" ? project.titleAr : project.titleEn;
   const tagline = language === "ar" ? project.taglineAr : project.taglineEn;
   const description = language === "ar" ? project.descriptionAr : project.descriptionEn;
-  const images = project.galleryImages && project.galleryImages.length > 0 
-    ? project.galleryImages 
-    : [project.coverImage];
+  const fallbackImg = "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80";
+  const rawImages = [
+    ...(Array.isArray(project.galleryImages) ? project.galleryImages : []),
+    project.coverImage
+  ].filter((img): img is string => typeof img === "string" && img.trim().length > 0);
 
-  const currentImage = images[activeImageIndex] || project.coverImage;
+  const images = rawImages.length > 0 ? rawImages : [fallbackImg];
+
+  const currentImage = images[activeImageIndex] || images[0] || fallbackImg;
 
   const handleNextImage = () => {
     setActiveImageIndex((prev) => (prev + 1) % images.length);

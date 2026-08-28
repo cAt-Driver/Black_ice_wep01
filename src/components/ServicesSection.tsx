@@ -71,7 +71,9 @@ export const ServicesSection: React.FC = () => {
             const desc = language === "ar" ? srv.descriptionAr : srv.descriptionEn;
             const features = language === "ar" ? srv.featuresAr : srv.featuresEn;
             const tag = language === "ar" ? srv.tagAr : srv.tagEn;
-            const bgImage = serviceImages[srv.id] || "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80";
+            const bgImage = (serviceImages[srv.id] && serviceImages[srv.id].trim().length > 0) 
+              ? serviceImages[srv.id] 
+              : "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80";
 
             return (
               <motion.div

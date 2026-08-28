@@ -78,7 +78,7 @@ export const Navbar: React.FC = () => {
           <a href="#" className="flex items-center gap-2 sm:gap-3 group min-w-0 max-w-[55%] xs:max-w-[60%] sm:max-w-none shrink">
             <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 p-0.5 shadow-md shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-all duration-300 shrink-0">
               <div className="w-full h-full bg-[#0b1120] rounded-[10px] flex items-center justify-center overflow-hidden">
-                {siteSettings.logoUrl ? (
+                {siteSettings.logoUrl && siteSettings.logoUrl.trim().length > 0 ? (
                   <img src={siteSettings.logoUrl} alt={brandName} className="w-full h-full object-cover" />
                 ) : (
                   <Terminal className="w-4 h-4 sm:w-5 sm:h-5 text-sky-400 group-hover:rotate-6 transition-transform" />

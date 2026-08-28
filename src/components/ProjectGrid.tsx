@@ -198,7 +198,7 @@ export const ProjectGrid: React.FC = () => {
                       {/* Compact Cover Image & Ribbons */}
                       <div className="relative h-32 sm:h-36 md:h-38 w-full overflow-hidden bg-slate-950">
                         <img
-                          src={project.coverImage}
+                          src={project.coverImage && project.coverImage.trim().length > 0 ? project.coverImage : "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80"}
                           alt={title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                           loading="lazy"

@@ -46,7 +46,8 @@ export const TestimonialsSection: React.FC = () => {
         {/* Testimonials & Clients Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
           {testimonials.map((item, idx) => {
-            const avatar = item.logoUrl || item.avatar || clientAvatars[idx % clientAvatars.length];
+            const rawAvatar = (item.logoUrl?.trim() || item.avatar?.trim() || "");
+            const avatar = rawAvatar || clientAvatars[idx % clientAvatars.length];
             const author = language === "ar" 
               ? (item.clientNameAr || item.authorAr || item.companyAr || "عميل موثوق")
               : (item.clientNameEn || item.authorEn || item.companyEn || "Valued Client");

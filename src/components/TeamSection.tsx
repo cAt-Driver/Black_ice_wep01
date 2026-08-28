@@ -54,7 +54,7 @@ export const TeamSection: React.FC = () => {
                   {/* Photo */}
                   <div className="relative h-32 sm:h-36 md:h-40 w-full overflow-hidden bg-slate-900">
                     <img
-                      src={member.avatar}
+                      src={member.avatar && member.avatar.trim().length > 0 ? member.avatar : "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80"}
                       alt={name}
                       className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 ease-out"
                       loading="lazy"
