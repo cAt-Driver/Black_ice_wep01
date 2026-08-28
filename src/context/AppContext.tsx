@@ -24,6 +24,7 @@ import {
   INITIAL_TESTIMONIALS,
   INITIAL_CATEGORIES 
 } from "../data/mockData";
+import { db, doc, onSnapshot, setDoc } from "../lib/firebase";
 
 export interface ToastMessage {
   id: string;
@@ -52,6 +53,7 @@ interface AppContextType {
   isDashboardOpen: boolean;
   toasts: ToastMessage[];
   unreadNotificationCount: number;
+  isCloudSynced: boolean;
 
   // Setters & UI Actions
   setSelectedCategory: (cat: ProjectCategory) => void;
@@ -110,6 +112,7 @@ interface AppContextType {
   removeToast: (id: string) => void;
   triggerCelebration: () => void;
   resetToDefaultData: () => void;
+  forceSyncToCloud: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -140,7 +143,11 @@ const playSoftChime = () => {
   }
 };
 
+const FIRESTORE_DOC_KEY = "site_data_v2";
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [isCloudSynced, setIsCloudSynced] = useState(false);
+
   // Users for authentication
   const [users, setUsers] = useState<AppUser[]>(() => {
     try {
@@ -249,7 +256,109 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // Sync to localStorage
+  // 1. Real-time Cloud Synchronization Listener with Firebase Firestore
+  useEffect(() => {
+    try {
+      const docRef = doc(db, "global_settings", FIRESTORE_DOC_KEY);
+      const unsubscribe = onSnapshot(docRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data) {
+            if (Array.isArray(data.projects) && data.projects.length > 0) {
+              setProjects(data.projects);
+              localStorage.setItem("novacoders_projects_v2", JSON.stringify(data.projects));
+            }
+            if (Array.isArray(data.teamMembers) && data.teamMembers.length > 0) {
+              setTeamMembers(data.teamMembers);
+              localStorage.setItem("novacoders_team_members_v2", JSON.stringify(data.teamMembers));
+            }
+            if (Array.isArray(data.services) && data.services.length > 0) {
+              setServices(data.services);
+              localStorage.setItem("novacoders_services_v2", JSON.stringify(data.services));
+            }
+            if (Array.isArray(data.testimonials) && data.testimonials.length > 0) {
+              setTestimonials(data.testimonials);
+              localStorage.setItem("novacoders_testimonials_v2", JSON.stringify(data.testimonials));
+            }
+            if (Array.isArray(data.categories) && data.categories.length > 0) {
+              setCategories(data.categories);
+              localStorage.setItem("novacoders_categories_v2", JSON.stringify(data.categories));
+            }
+            if (Array.isArray(data.users) && data.users.length > 0) {
+              setUsers(data.users);
+              localStorage.setItem("novacoders_users_list_v2", JSON.stringify(data.users));
+            }
+            if (data.siteSettings && typeof data.siteSettings === "object") {
+              setSiteSettings(data.siteSettings);
+              localStorage.setItem("novacoders_site_settings_v2", JSON.stringify(data.siteSettings));
+            }
+            if (Array.isArray(data.inquiries)) {
+              setInquiries(data.inquiries);
+              localStorage.setItem("novacoders_inquiries_v2", JSON.stringify(data.inquiries));
+            }
+            if (Array.isArray(data.notifications)) {
+              setNotifications(data.notifications);
+              localStorage.setItem("novacoders_notifs_v2", JSON.stringify(data.notifications));
+            }
+            setIsCloudSynced(true);
+          }
+        } else {
+          // Document does not exist in Firestore yet -> Initial Seed Push
+          const initialPayload = {
+            projects: INITIAL_PROJECTS,
+            teamMembers: TEAM_MEMBERS,
+            services: INITIAL_SERVICES,
+            testimonials: INITIAL_TESTIMONIALS,
+            categories: INITIAL_CATEGORIES,
+            users: DEFAULT_USERS,
+            siteSettings: DEFAULT_SITE_SETTINGS,
+            inquiries: INITIAL_INQUIRIES,
+            notifications: INITIAL_NOTIFICATIONS,
+            lastUpdated: new Date().toISOString()
+          };
+          setDoc(docRef, initialPayload, { merge: true }).catch(console.error);
+          setIsCloudSynced(true);
+        }
+      }, (error) => {
+        console.warn("Firestore onSnapshot error:", error);
+      });
+
+      return () => unsubscribe();
+    } catch (e) {
+      console.warn("Firebase listener initialization error:", e);
+    }
+  }, []);
+
+  // Sync to Cloud helper
+  const syncToCloud = async (overrideData?: Partial<any>) => {
+    try {
+      const docRef = doc(db, "global_settings", FIRESTORE_DOC_KEY);
+      const payload = {
+        projects,
+        teamMembers,
+        services,
+        testimonials,
+        categories,
+        users,
+        siteSettings,
+        inquiries,
+        notifications,
+        lastUpdated: new Date().toISOString(),
+        ...overrideData
+      };
+      await setDoc(docRef, payload, { merge: true });
+      setIsCloudSynced(true);
+    } catch (err) {
+      console.error("Cloud save failed:", err);
+    }
+  };
+
+  const forceSyncToCloud = async () => {
+    await syncToCloud();
+    showToast("تمت المزامنة السحابية", "تم حفظ وتحديث كافة البيانات في قاعدة البيانات السحابية الحية بنجاح.", "success");
+  };
+
+  // Sync to localStorage as fast client cache
   useEffect(() => {
     localStorage.setItem("novacoders_users_list_v2", JSON.stringify(users));
   }, [users]);
@@ -348,7 +457,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       triggerCelebration();
       showToast(
         "أهلاً وسهلاً بك!",
-        `مرحباً بك يا ${foundUser.name} في لوحة التحكم. يمكنك الآن تعديل وإدارة المحتوى بكل سهولة.`,
+        `مرحباً بك يا ${foundUser.name} في لوحة التحكم. متصل بقاعدة البيانات السحابية.`,
         "success"
       );
       return true;
@@ -393,7 +502,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast("تسجيل خروج", "تم تسجيل خروجك بأمان.", "info");
   };
 
-  // User Management
+  // User Management with Cloud Sync
   const addUser = (newUser: Omit<AppUser, "id" | "createdAt">) => {
     const id = `user-${Date.now()}`;
     const user: AppUser = {
@@ -401,15 +510,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
       createdAt: new Date().toISOString(),
     };
-    setUsers((prev) => [...prev, user]);
-    showToast("تمت الإضافة", `تمت إضافة المستخدم ${newUser.name} بنجاح`, "success");
+    const nextUsers = [...users, user];
+    setUsers(nextUsers);
+    syncToCloud({ users: nextUsers });
+    showToast("تمت الإضافة سحابياً", `تمت إضافة المستخدم ${newUser.name} بنجاح`, "success");
   };
 
   const updateUser = (id: string, updated: Partial<AppUser>) => {
-    setUsers((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, ...updated } : u))
-    );
-    showToast("تم التحديث", "تم حفظ بيانات المستخدم بنجاح.", "success");
+    const nextUsers = users.map((u) => (u.id === id ? { ...u, ...updated } : u));
+    setUsers(nextUsers);
+    syncToCloud({ users: nextUsers });
+    showToast("تم التحديث سحابياً", "تم حفظ بيانات المستخدم بنجاح.", "success");
   };
 
   const deleteUser = (id: string): boolean => {
@@ -417,12 +528,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast("تنبيه", "لا يمكن حذف آخر مستخدم في لوحة التحكم.", "warning");
       return false;
     }
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-    showToast("تم الحذف", "تمت إزالة المستخدم بنجاح.", "info");
+    const nextUsers = users.filter((u) => u.id !== id);
+    setUsers(nextUsers);
+    syncToCloud({ users: nextUsers });
+    showToast("تم الحذف سحابياً", "تمت إزالة المستخدم بنجاح.", "info");
     return true;
   };
 
-  // Categories CRUD
+  // Categories CRUD with Cloud Sync
   const addCategory = (newCat: Omit<CategoryItem, "id">) => {
     const id = `cat-${Date.now()}`;
     const category: CategoryItem = {
@@ -430,15 +543,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
       key: newCat.key || `cat_${Date.now()}`
     };
-    setCategories((prev) => [...prev, category]);
-    showToast("تمت إضافة الفئة", `تمت إضافة التصنيف "${newCat.nameAr}" بنجاح`, "success");
+    const nextCats = [...categories, category];
+    setCategories(nextCats);
+    syncToCloud({ categories: nextCats });
+    showToast("تمت إضافة الفئة سحابياً", `تمت إضافة التصنيف "${newCat.nameAr}" بنجاح`, "success");
   };
 
   const updateCategory = (idOrKey: string, updated: Partial<CategoryItem>) => {
-    setCategories((prev) =>
-      prev.map((c) => (c.id === idOrKey || c.key === idOrKey ? { ...c, ...updated } : c))
-    );
-    showToast("تم تحديث التصنيف", "تم حفظ تعديلات الفئة بنجاح.", "success");
+    const nextCats = categories.map((c) => (c.id === idOrKey || c.key === idOrKey ? { ...c, ...updated } : c));
+    setCategories(nextCats);
+    syncToCloud({ categories: nextCats });
+    showToast("تم تحديث التصنيف سحابياً", "تم حفظ تعديلات الفئة بنجاح.", "success");
   };
 
   const deleteCategory = (idOrKey: string): boolean => {
@@ -446,75 +561,91 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       showToast("تنبيه", "يجب الإبقاء على تصنيف واحد على الأقل للمشاريع.", "warning");
       return false;
     }
-    setCategories((prev) => prev.filter((c) => c.id !== idOrKey && c.key !== idOrKey));
-    showToast("تم الحذف", "تمت إزالة التصنيف بنجاح.", "info");
+    const nextCats = categories.filter((c) => c.id !== idOrKey && c.key !== idOrKey);
+    setCategories(nextCats);
+    syncToCloud({ categories: nextCats });
+    showToast("تم الحذف سحابياً", "تمت إزالة التصنيف بنجاح.", "info");
     return true;
   };
 
-  // Site Settings
+  // Site Settings with Cloud Sync
   const updateSiteSettings = (settings: Partial<SiteSettings>) => {
-    setSiteSettings((prev) => ({ ...prev, ...settings }));
-    showToast("تم التحديث", "تم حفظ إعدادات الموقع بنجاح.", "success");
+    const nextSettings = { ...siteSettings, ...settings };
+    setSiteSettings(nextSettings);
+    syncToCloud({ siteSettings: nextSettings });
+    showToast("تم التحديث سحابياً", "تم حفظ إعدادات الموقع ونشرها للجميع بنجاح.", "success");
   };
 
-  // Team Members CRUD
+  // Team Members CRUD with Cloud Sync
   const addTeamMember = (member: Omit<TeamMember, "id">) => {
     const id = `mem-${Date.now()}`;
-    setTeamMembers((prev) => [...prev, { ...member, id }]);
-    showToast("تمت الإضافة", `تمت إضافة المهندس/ة ${member.nameAr} إلى الفريق.`, "success");
+    const nextMembers = [...teamMembers, { ...member, id }];
+    setTeamMembers(nextMembers);
+    syncToCloud({ teamMembers: nextMembers });
+    showToast("تمت الإضافة سحابياً", `تمت إضافة المهندس/ة ${member.nameAr} إلى الفريق ونشرها للزوار.`, "success");
   };
 
   const updateTeamMember = (id: string, updated: Partial<TeamMember>) => {
-    setTeamMembers((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, ...updated } : m))
-    );
-    showToast("تم التحديث", "تم تعديل بيانات عضو الفريق.", "success");
+    const nextMembers = teamMembers.map((m) => (m.id === id ? { ...m, ...updated } : m));
+    setTeamMembers(nextMembers);
+    syncToCloud({ teamMembers: nextMembers });
+    showToast("تم التحديث سحابياً", "تم تعديل بيانات عضو الفريق وتحديثها لكل الزوار.", "success");
   };
 
   const deleteTeamMember = (id: string) => {
-    setTeamMembers((prev) => prev.filter((m) => m.id !== id));
-    showToast("تم الحذف", "تمت إزالة العضو من الفريق.", "info");
+    const nextMembers = teamMembers.filter((m) => m.id !== id);
+    setTeamMembers(nextMembers);
+    syncToCloud({ teamMembers: nextMembers });
+    showToast("تم الحذف سحابياً", "تمت إزالة العضو من الفريق.", "info");
   };
 
-  // Services CRUD
+  // Services CRUD with Cloud Sync
   const addService = (service: Omit<ServiceItem, "id">) => {
     const id = `serv-${Date.now()}`;
-    setServices((prev) => [...prev, { ...service, id }]);
-    showToast("تمت الإضافة", `تمت إضافة خدمة "${service.titleAr}".`, "success");
+    const nextServices = [...services, { ...service, id }];
+    setServices(nextServices);
+    syncToCloud({ services: nextServices });
+    showToast("تمت الإضافة سحابياً", `تمت إضافة خدمة "${service.titleAr}".`, "success");
   };
 
   const updateService = (id: string, updated: Partial<ServiceItem>) => {
-    setServices((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...updated } : s))
-    );
-    showToast("تم التحديث", "تم حفظ تعديل الخدمة.", "success");
+    const nextServices = services.map((s) => (s.id === id ? { ...s, ...updated } : s));
+    setServices(nextServices);
+    syncToCloud({ services: nextServices });
+    showToast("تم التحديث سحابياً", "تم حفظ تعديل الخدمة وتحديثها بالموقع.", "success");
   };
 
   const deleteService = (id: string) => {
-    setServices((prev) => prev.filter((s) => s.id !== id));
-    showToast("تم الحذف", "تمت إزالة الخدمة.", "info");
+    const nextServices = services.filter((s) => s.id !== id);
+    setServices(nextServices);
+    syncToCloud({ services: nextServices });
+    showToast("تم الحذف سحابياً", "تمت إزالة الخدمة.", "info");
   };
 
-  // Testimonials / Clients Partners CRUD
+  // Testimonials / Clients Partners CRUD with Cloud Sync
   const addTestimonial = (test: Omit<TestimonialItem, "id">) => {
     const id = `test-${Date.now()}`;
-    setTestimonials((prev) => [...prev, { ...test, id }]);
-    showToast("تمت الإضافة", `تمت إضافة الجهة/العميل "${test.companyAr || test.clientNameAr}".`, "success");
+    const nextTestimonials = [...testimonials, { ...test, id }];
+    setTestimonials(nextTestimonials);
+    syncToCloud({ testimonials: nextTestimonials });
+    showToast("تمت الإضافة سحابياً", `تمت إضافة الجهة/العميل "${test.companyAr || test.clientNameAr}".`, "success");
   };
 
   const updateTestimonial = (id: string, updated: Partial<TestimonialItem>) => {
-    setTestimonials((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updated } : t))
-    );
-    showToast("تم التحديث", "تم حفظ بيانات الجهة/العميل.", "success");
+    const nextTestimonials = testimonials.map((t) => (t.id === id ? { ...t, ...updated } : t));
+    setTestimonials(nextTestimonials);
+    syncToCloud({ testimonials: nextTestimonials });
+    showToast("تم التحديث سحابياً", "تم حفظ بيانات الجهة/العميل سحابياً.", "success");
   };
 
   const deleteTestimonial = (id: string) => {
-    setTestimonials((prev) => prev.filter((t) => t.id !== id));
-    showToast("تم الحذف", "تمت إزالة الجهة من القائمة.", "info");
+    const nextTestimonials = testimonials.filter((t) => t.id !== id);
+    setTestimonials(nextTestimonials);
+    syncToCloud({ testimonials: nextTestimonials });
+    showToast("تم الحذف سحابياً", "تمت إزالة الجهة من القائمة.", "info");
   };
 
-  // Project CRUD
+  // Project CRUD with Cloud Sync
   const addProject = (newProj: Omit<Project, "id" | "views" | "likes">) => {
     const id = `proj-${Date.now()}`;
     const project: Project = {
@@ -523,7 +654,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       views: 1,
       likes: 0,
     };
-    setProjects((prev) => [project, ...prev]);
+    const nextProjects = [project, ...projects];
+    setProjects(nextProjects);
+    syncToCloud({ projects: nextProjects });
     broadcastNotification(
       `تم إطلاق نظام جديد: ${project.titleAr}`,
       `New System Launched: ${project.titleEn}`,
@@ -532,41 +665,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       "project_added"
     );
     triggerCelebration();
-    showToast("تم نشر المشروع بنجاح", `تمت إضافة "${project.titleAr}" إلى الموقع.`, "success");
+    showToast("تم نشر المشروع سحابياً!", `تمت إضافة "${project.titleAr}" وسيظهر لكل زوار الموقع فوراً.`, "success");
   };
 
   const updateProject = (id: string, updated: Partial<Project>) => {
-    setProjects((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updated } : p))
-    );
+    const nextProjects = projects.map((p) => (p.id === id ? { ...p, ...updated } : p));
+    setProjects(nextProjects);
+    syncToCloud({ projects: nextProjects });
     if (activeProjectDetail?.id === id) {
       setActiveProjectDetail((prev) => (prev ? { ...prev, ...updated } : null));
     }
-    showToast("تم التحديث", "تم حفظ تعديلات المشروع والأسعار.", "success");
+    showToast("تم التحديث سحابياً", "تم حفظ تعديلات المشروع والأسعار ونشرها لجميع الزوار.", "success");
   };
 
   const deleteProject = (id: string) => {
-    setProjects((prev) => prev.filter((p) => p.id !== id));
+    const nextProjects = projects.filter((p) => p.id !== id);
+    setProjects(nextProjects);
+    syncToCloud({ projects: nextProjects });
     if (activeProjectDetail?.id === id) {
       setActiveProjectDetail(null);
     }
-    showToast("تم الحذف", "تمت إزالة المشروع بنجاح.", "info");
+    showToast("تم الحذف سحابياً", "تمت إزالة المشروع بنجاح من قاعدة البيانات السحابية.", "info");
   };
 
   const toggleFeaturedProject = (id: string) => {
-    setProjects((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, featured: !p.featured } : p))
-    );
+    const nextProjects = projects.map((p) => (p.id === id ? { ...p, featured: !p.featured } : p));
+    setProjects(nextProjects);
+    syncToCloud({ projects: nextProjects });
   };
 
   const likeProject = (id: string) => {
-    setProjects((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, likes: p.likes + 1 } : p))
-    );
-    showToast("شكراً لك!", "تم تسجيل إعجابك بالنظام.", "info");
+    const nextProjects = projects.map((p) => (p.id === id ? { ...p, likes: p.likes + 1 } : p));
+    setProjects(nextProjects);
+    syncToCloud({ projects: nextProjects });
+    showToast("شكراً لك!", "تم تسجيل إعجابك بالنظام سحابياً.", "info");
   };
 
-  // Inquiries
+  // Inquiries with Cloud Sync
   const submitInquiry = async (
     inquiryData: Omit<ClientInquiry, "id" | "createdAt" | "status">
   ): Promise<boolean> => {
@@ -578,7 +713,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         status: "new",
       };
 
-      setInquiries((prev) => [newInquiry, ...prev]);
+      const nextInquiries = [newInquiry, ...inquiries];
+      setInquiries(nextInquiries);
+      await syncToCloud({ inquiries: nextInquiries });
 
       broadcastNotification(
         `طلب مشروع جديد من ${inquiryData.name}`,
@@ -591,7 +728,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       triggerCelebration();
       showToast(
         "تم إرسال طلبك بنجاح!",
-        "شكراً لتواصلك معنا. سنراجع متطلباتك ونتواصل معك عبر الواتساب أو الهاتف في أقرب وقت.",
+        "شكراً لتواصلك معنا. تم حفظ طلبك سحابياً وسنتواصل معك عبر الواتساب في أقرب وقت.",
         "success"
       );
       return true;
@@ -610,26 +747,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateInquiryStatus = (id: string, status: ClientInquiry["status"]) => {
-    setInquiries((prev) =>
-      prev.map((inq) => (inq.id === id ? { ...inq, status } : inq))
-    );
+    const nextInquiries = inquiries.map((inq) => (inq.id === id ? { ...inq, status } : inq));
+    setInquiries(nextInquiries);
+    syncToCloud({ inquiries: nextInquiries });
     showToast("تم التحديث", `تم تعديل حالة الطلب إلى: ${status}`, "info");
   };
 
   const deleteInquiry = (id: string) => {
-    setInquiries((prev) => prev.filter((i) => i.id !== id));
-    showToast("تم الحذف", "تمت إزالة الطلب من الصندوق.", "info");
+    const nextInquiries = inquiries.filter((i) => i.id !== id);
+    setInquiries(nextInquiries);
+    syncToCloud({ inquiries: nextInquiries });
+    showToast("تم الحذف", "تمت إزالة الطلب من الصندوق سحابياً.", "info");
   };
 
   // Notifications
   const markAllNotificationsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    const nextNotifs = notifications.map((n) => ({ ...n, read: true }));
+    setNotifications(nextNotifs);
+    syncToCloud({ notifications: nextNotifs });
   };
 
   const markNotificationRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    const nextNotifs = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
+    setNotifications(nextNotifs);
+    syncToCloud({ notifications: nextNotifs });
   };
 
   const broadcastNotification = (
@@ -650,7 +791,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       read: false,
     };
 
-    setNotifications((prev) => [newNotif, ...prev]);
+    const nextNotifs = [newNotif, ...notifications];
+    setNotifications(nextNotifs);
+    syncToCloud({ notifications: nextNotifs });
     showToast(titleAr, messageAr, type === "project_added" ? "success" : "info");
   };
 
@@ -665,6 +808,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTestimonials(INITIAL_TESTIMONIALS);
     setCategories(INITIAL_CATEGORIES);
 
+    syncToCloud({
+      projects: INITIAL_PROJECTS,
+      inquiries: INITIAL_INQUIRIES,
+      notifications: INITIAL_NOTIFICATIONS,
+      users: DEFAULT_USERS,
+      siteSettings: DEFAULT_SITE_SETTINGS,
+      teamMembers: TEAM_MEMBERS,
+      services: INITIAL_SERVICES,
+      testimonials: INITIAL_TESTIMONIALS,
+      categories: INITIAL_CATEGORIES
+    });
+
     localStorage.removeItem("novacoders_projects_v2");
     localStorage.removeItem("novacoders_inquiries_v2");
     localStorage.removeItem("novacoders_notifs_v2");
@@ -675,7 +830,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem("novacoders_testimonials_v2");
     localStorage.removeItem("novacoders_categories_v2");
 
-    showToast("تمت استعادة البيانات الافتراضية", "تمت إعادة تعيين الموقع للبيانات الافتراضية الأولية.", "info");
+    showToast("تمت استعادة البيانات الافتراضية سحابياً", "تمت إعادة تعيين الموقع للبيانات الافتراضية الأولية وتحديثها للجميع.", "info");
   };
 
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
@@ -701,6 +856,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isDashboardOpen,
         toasts,
         unreadNotificationCount,
+        isCloudSynced,
         setSelectedCategory,
         setSearchQuery,
         setActiveProjectDetail,
@@ -741,6 +897,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         removeToast,
         triggerCelebration,
         resetToDefaultData,
+        forceSyncToCloud,
       }}
     >
       {children}

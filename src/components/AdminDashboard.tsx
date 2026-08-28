@@ -82,7 +82,9 @@ export const AdminDashboard: React.FC = () => {
     addTestimonial,
     updateTestimonial,
     deleteTestimonial,
-    showToast
+    showToast,
+    isCloudSynced,
+    forceSyncToCloud
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<
@@ -601,6 +603,25 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Cloud Realtime Status Indicator */}
+            <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700/80 text-[11px]">
+              <span className={`w-2 h-2 rounded-full ${isCloudSynced ? "bg-emerald-400 animate-pulse shadow-sm shadow-emerald-400" : "bg-amber-400"}`} />
+              <span className="text-slate-300 font-medium">
+                {isCloudSynced 
+                  ? (language === "ar" ? "قاعدة البيانات السحابية: متصلة ونشطة" : "Cloud DB: Connected & Synced") 
+                  : (language === "ar" ? "جارٍ المزامنة السحابية..." : "Connecting to Cloud...")}
+              </span>
+            </div>
+
+            <button
+              onClick={() => forceSyncToCloud()}
+              title={language === "ar" ? "مزامنة فورية لكل البيانات إلى السحابة" : "Force sync all data to cloud"}
+              className="px-3 py-2 text-xs font-semibold text-sky-300 hover:text-white bg-blue-950/40 hover:bg-blue-900/50 rounded-xl border border-blue-500/30 transition-colors flex items-center gap-1.5"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{language === "ar" ? "مزامنة سحابية" : "Sync Cloud"}</span>
+            </button>
+
             <button
               onClick={() => setIsDashboardOpen(false)}
               className="px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded-xl border border-slate-700 transition-colors flex items-center gap-1.5"
