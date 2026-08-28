@@ -1,15 +1,26 @@
 /**
  * Image compressor utility to resize and optimize images before saving to Firestore and localStorage.
- * Ensures images stay lightweight (20KB - 60KB) with high clarity, preventing Firestore document limit errors (1MB).
+ * Ensures images stay lightweight (20KB - 40KB) with high clarity, preventing Firestore document limit errors (1MB).
  */
 
 export async function compressImage(
-  fileOrUrl: File | string,
-  maxWidth = 1200,
-  maxHeight = 800,
-  quality = 0.75
+  fileOrUrl: File | Blob | string,
+  maxWidth = 1000,
+  maxHeight = 700,
+  quality = 0.72
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
+  // If it's already an external HTTP/HTTPS URL, return directly without processing
+  if (typeof fileOrUrl === "string") {
+    const trimmed = fileOrUrl.trim();
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return trimmed;
+    }
+    if (!trimmed.startsWith("data:image")) {
+      return trimmed;
+    }
+  }
+
+  return new Promise((resolve) => {
     try {
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -18,8 +29,8 @@ export async function compressImage(
 
       img.onload = () => {
         try {
-          let width = img.width;
-          let height = img.height;
+          let width = img.width || 800;
+          let height = img.height || 600;
 
           // Proportional scaling
           if (width > maxWidth) {
@@ -61,17 +72,17 @@ export async function compressImage(
         }
       };
 
-      img.onerror = (err) => {
+      img.onerror = () => {
         if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
-        // If image fails to load via canvas, fallback to raw string if available
         if (typeof fileOrUrl === "string") {
           resolve(fileOrUrl);
-        } else {
-          // If it was a File, read as plain DataURL as fallback
+        } else if (fileOrUrl instanceof Blob) {
           const reader = new FileReader();
           reader.onload = (e) => resolve((e.target?.result as string) || "");
-          reader.onerror = () => reject(err);
+          reader.onerror = () => resolve("");
           reader.readAsDataURL(fileOrUrl);
+        } else {
+          resolve("");
         }
       };
 
@@ -89,3 +100,4 @@ export async function compressImage(
     }
   });
 }
+

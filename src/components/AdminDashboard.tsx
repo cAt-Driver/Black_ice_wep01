@@ -332,33 +332,39 @@ export const AdminDashboard: React.FC = () => {
 
     const tags = tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
     const simpleFeatures = simpleFeaturesInput.split(",").map((f) => f.trim()).filter(Boolean);
+    const finalCoverImage = coverImage && coverImage.trim().length > 0 
+      ? coverImage.trim() 
+      : "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80";
+
+    const validGallery = galleryImages.filter((g) => typeof g === "string" && g.trim().length > 0);
+    const finalGalleryImages = validGallery.length > 0 ? validGallery : [finalCoverImage];
 
     const projectPayload: Omit<Project, "id" | "views" | "likes"> = {
-      titleAr,
-      titleEn: titleEn || titleAr,
-      taglineAr: taglineAr || titleAr,
-      taglineEn: taglineEn || titleEn || titleAr,
-      descriptionAr,
-      descriptionEn: descriptionEn || descriptionAr,
+      titleAr: titleAr.trim(),
+      titleEn: (titleEn || titleAr).trim(),
+      taglineAr: (taglineAr || titleAr).trim(),
+      taglineEn: (taglineEn || titleEn || titleAr).trim(),
+      descriptionAr: descriptionAr.trim(),
+      descriptionEn: (descriptionEn || descriptionAr).trim(),
       category,
       tags: tags.length > 0 ? tags : ["تطوير برمجيات", "حلول ذكية"],
-      coverImage: coverImage || "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
-      galleryImages: galleryImages.length > 0 ? galleryImages : [coverImage],
+      coverImage: finalCoverImage,
+      galleryImages: finalGalleryImages,
       pricingType,
       price: price || "حسب الاتفاق",
-      hasDiscount,
-      originalPrice: hasDiscount ? originalPrice : undefined,
-      discountPercent: hasDiscount ? discountPercent : undefined,
-      offerTag: hasDiscount ? offerTag : undefined,
+      hasDiscount: Boolean(hasDiscount),
+      originalPrice: hasDiscount && originalPrice ? originalPrice : "",
+      discountPercent: hasDiscount && discountPercent ? discountPercent : "",
+      offerTag: hasDiscount && offerTag ? offerTag : "",
       annualMaintenancePrice: annualMaintenancePrice || "مجاناً أول سنة",
-      subscriptionPlans: plans,
+      subscriptionPlans: plans || [],
       simpleFeaturesAr: simpleFeatures,
       simpleFeaturesEn: simpleFeatures,
-      liveUrl,
-      githubUrl,
+      liveUrl: liveUrl || "",
+      githubUrl: githubUrl || "",
       clientName: clientName || "عميل مميز",
       completionDate: completionDate || "2026-03",
-      featured,
+      featured: Boolean(featured),
       status: "live",
       metrics: [
         { labelAr: "سرعة الإنجاز", labelEn: "Speed", value: "فورية" },

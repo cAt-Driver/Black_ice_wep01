@@ -292,6 +292,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Helper to remove any undefined values before sending to Firestore
+  const sanitizeForFirestore = (obj: any): any => {
+    return JSON.parse(JSON.stringify(obj, (_, val) => {
+      if (val === undefined) return "";
+      return val;
+    }));
+  };
+
   // 1. Real-time Cloud Synchronization Listener with Firebase Firestore
   useEffect(() => {
     let isSubscribed = true;
@@ -303,27 +311,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (data) {
-            if (Array.isArray(data.projects)) {
+            if (Array.isArray(data.projects) && data.projects.length > 0) {
               setProjects(data.projects);
               safeSetItem("novacoders_projects_v2", data.projects);
             }
-            if (Array.isArray(data.teamMembers)) {
+            if (Array.isArray(data.teamMembers) && data.teamMembers.length > 0) {
               setTeamMembers(data.teamMembers);
               safeSetItem("novacoders_team_members_v2", data.teamMembers);
             }
-            if (Array.isArray(data.services)) {
+            if (Array.isArray(data.services) && data.services.length > 0) {
               setServices(data.services);
               safeSetItem("novacoders_services_v2", data.services);
             }
-            if (Array.isArray(data.testimonials)) {
+            if (Array.isArray(data.testimonials) && data.testimonials.length > 0) {
               setTestimonials(data.testimonials);
               safeSetItem("novacoders_testimonials_v2", data.testimonials);
             }
-            if (Array.isArray(data.categories)) {
+            if (Array.isArray(data.categories) && data.categories.length > 0) {
               setCategories(data.categories);
               safeSetItem("novacoders_categories_v2", data.categories);
             }
-            if (Array.isArray(data.users)) {
+            if (Array.isArray(data.users) && data.users.length > 0) {
               setUsers(data.users);
               safeSetItem("novacoders_users_list_v2", data.users);
             }
@@ -343,7 +351,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
         } else {
           // Document does not exist in Firestore yet -> Initial Seed Push
-          const initialPayload = {
+          const initialPayload = sanitizeForFirestore({
             projects: stateRef.current.projects.length > 0 ? stateRef.current.projects : INITIAL_PROJECTS,
             teamMembers: stateRef.current.teamMembers.length > 0 ? stateRef.current.teamMembers : TEAM_MEMBERS,
             services: stateRef.current.services.length > 0 ? stateRef.current.services : INITIAL_SERVICES,
@@ -354,7 +362,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             inquiries: stateRef.current.inquiries || INITIAL_INQUIRIES,
             notifications: stateRef.current.notifications || INITIAL_NOTIFICATIONS,
             lastUpdated: new Date().toISOString()
-          };
+          });
           setDoc(docRef, initialPayload, { merge: true }).catch(console.error);
           setIsCloudSynced(true);
         }
@@ -375,7 +383,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const syncToCloud = async (overrideData?: Partial<any>) => {
     try {
       const docRef = doc(db, "global_settings", FIRESTORE_DOC_KEY);
-      const payload = {
+      const rawPayload = {
         projects: overrideData?.projects ?? stateRef.current.projects,
         teamMembers: overrideData?.teamMembers ?? stateRef.current.teamMembers,
         services: overrideData?.services ?? stateRef.current.services,
@@ -388,7 +396,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         lastUpdated: new Date().toISOString(),
         ...overrideData
       };
-      await setDoc(docRef, payload, { merge: true });
+      const cleanPayload = sanitizeForFirestore(rawPayload);
+      await setDoc(docRef, cleanPayload, { merge: true });
       setIsCloudSynced(true);
     } catch (err) {
       console.error("Cloud save failed:", err);

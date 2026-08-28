@@ -50,72 +50,63 @@ export const HeroSection: React.FC = () => {
   const title2 = language === "ar" ? siteSettings.heroTitleLine2Ar : siteSettings.heroTitleLine2En;
   const description = language === "ar" ? siteSettings.heroSubtitleAr : siteSettings.heroSubtitleEn;
 
-  // Interactive showcase items for the Hero Visual Deck
-  const showcaseTabs = [
-    {
-      id: "pos",
-      titleAr: "نظام كاشير ونقاط البيع",
-      titleEn: "POS & Cashier Suite",
-      icon: Calculator,
-      tagAr: "يعمل أوفلاين وسحابي",
-      tagEn: "Offline & Cloud",
-      image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80",
-      badgeTextAr: "⚡ سرعة إتمام الفاتورة بأقل من ثانيتين",
-      badgeTextEn: "⚡ Sub-second checkout speed",
-      badgeIcon: Zap,
-      floatingStat: "99.9% جاهزية",
-      relatedProjId: "proj-3"
-    },
-    {
-      id: "app",
-      titleAr: "تطبيق توصيل ومتاجر متعددة",
-      titleEn: "E-Commerce & Delivery App",
-      icon: ShoppingBag,
-      tagAr: "iOS & Android",
-      tagEn: "iOS & Android",
-      image: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=1200&q=80",
-      badgeTextAr: "📱 واجهات سلسة ودفع آبل باي",
-      badgeTextEn: "📱 Apple Pay & Instant Tracking",
-      badgeIcon: Smartphone,
-      floatingStat: "⭐ 4.9 تقييم العملاء",
-      relatedProjId: "proj-2"
-    },
-    {
-      id: "erp",
-      titleAr: "نظام المحاسبة وإدارة المخزون",
-      titleEn: "Accounting & Inventory ERP",
-      icon: TrendingUp,
-      tagAr: "فواتير وضريبة ZATCA",
-      tagEn: "Tax & e-Invoicing",
-      image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
-      badgeTextAr: "📊 تقارير أرباح وخسائر فورية",
-      badgeTextEn: "📊 Real-time P&L analytics",
-      badgeIcon: Layers,
-      floatingStat: "🔒 أمان مشفر 100%",
-      relatedProjId: "proj-1"
-    },
-    {
-      id: "clinic",
-      titleAr: "نظام إدارة العيادات والمراكز",
-      titleEn: "EHR Clinic Manager",
-      icon: Activity,
-      tagAr: "مواعيد وملفات إلكترونية",
-      tagEn: "Appointments & EHR",
-      image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80",
-      badgeTextAr: "🩺 إرسال تذكير واتساب تلقائي للمرضى",
-      badgeTextEn: "🩺 Automated WhatsApp reminders",
-      badgeIcon: ShieldCheck,
-      floatingStat: "+40% تنظيم مواعيد",
-      relatedProjId: "proj-4"
-    }
-  ];
+  // Dynamic showcase items derived directly from real projects in AppContext
+  const showcaseTabs = React.useMemo(() => {
+    if (!projects || projects.length === 0) return [];
+    
+    return projects.map((proj, idx) => {
+      const titleAr = proj.titleAr || "نظام مخصص";
+      const titleEn = proj.titleEn || proj.titleAr || "Custom System";
+      const tagAr = proj.category || (proj.tags && proj.tags[0]) || "نظام متكامل";
+      const tagEn = proj.category || (proj.tags && proj.tags[0]) || "Full System";
+      const image = (proj.coverImage && proj.coverImage.trim().length > 0)
+        ? proj.coverImage
+        : (proj.galleryImages && proj.galleryImages[0] && proj.galleryImages[0].trim().length > 0)
+          ? proj.galleryImages[0]
+          : "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80";
 
-  const [activeTabId, setActiveTabId] = useState(showcaseTabs[0].id);
-  const activeShowcase = showcaseTabs.find((t) => t.id === activeTabId) || showcaseTabs[0];
+      const badgeTextAr = proj.taglineAr || proj.descriptionAr || "نظام برمجي متكامل";
+      const badgeTextEn = proj.taglineEn || proj.descriptionEn || "Complete software solution";
+      
+      let floatingStat = "جاهز للطلب";
+      if (proj.pricingType === "subscription") {
+        floatingStat = language === "ar" ? "اشتراك مرن" : "Subscription";
+      } else if (proj.hasDiscount && proj.offerTag) {
+        floatingStat = proj.offerTag;
+      } else if (proj.price) {
+        floatingStat = proj.price;
+      }
+
+      return {
+        id: proj.id,
+        titleAr,
+        titleEn,
+        tagAr,
+        tagEn,
+        image,
+        badgeTextAr,
+        badgeTextEn,
+        badgeIcon: idx % 2 === 0 ? Zap : Sparkles,
+        floatingStat,
+        project: proj
+      };
+    });
+  }, [projects, language]);
+
+  const [activeTabId, setActiveTabId] = useState<string>("");
+
+  const activeShowcase = React.useMemo(() => {
+    if (showcaseTabs.length === 0) return null;
+    const found = showcaseTabs.find((t) => t.id === activeTabId);
+    return found || showcaseTabs[0];
+  }, [showcaseTabs, activeTabId]);
 
   const handleOpenShowcaseDetail = () => {
-    const proj = projects.find((p) => p.id === activeShowcase.relatedProjId) || projects[0];
-    if (proj) setActiveProjectDetail(proj);
+    if (activeShowcase?.project) {
+      setActiveProjectDetail(activeShowcase.project);
+    } else if (projects.length > 0) {
+      setActiveProjectDetail(projects[0]);
+    }
   };
 
   return (
@@ -324,98 +315,100 @@ export const HeroSection: React.FC = () => {
           </motion.div>
         </div>
 
-        {/* VISUAL DELIGHT: Interactive Software Showcase Preview Window (Compact) */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.4 }}
-          className="mt-8 sm:mt-12 max-w-4xl mx-auto rounded-2xl bg-gradient-to-b from-[#0e162a] to-[#070c18] border border-blue-500/30 shadow-xl shadow-blue-950/80 p-2.5 sm:p-4 relative overflow-hidden"
-        >
-          {/* Showcase Top Control Bar & Tabs */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pb-3 border-b border-slate-800">
-            
-            {/* System Switcher Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 custom-scrollbar">
-              {showcaseTabs.map((tab) => {
-                const TabIcon = tab.icon;
-                const isActive = tab.id === activeTabId;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTabId(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap ${
-                      isActive 
-                        ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-[1.02]" 
-                        : "bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800"
-                    }`}
-                  >
-                    <TabIcon className="w-3 h-3 text-sky-300" />
-                    <span>{language === "ar" ? tab.titleAr : tab.titleEn}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* View Project Action */}
-            <button
-              onClick={handleOpenShowcaseDetail}
-              className="text-[11px] font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-950/60 border border-blue-500/30 hover:border-blue-400 transition-colors self-end sm:self-center"
-            >
-              <Monitor className="w-3 h-3" />
-              <span>{language === "ar" ? "معاينة كامل الشاشات" : "View Full Screens"}</span>
-            </button>
-          </div>
-
-          {/* Showcase Screen Frame with Floating Highlights */}
-          <div className="relative mt-3 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 aspect-[16/9] max-h-[260px] sm:max-h-[340px] group">
-            <motion.img
-              key={activeShowcase.image}
-              initial={{ opacity: 0, scale: 1.03 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4 }}
-              src={activeShowcase.image}
-              alt={language === "ar" ? activeShowcase.titleAr : activeShowcase.titleEn}
-              className="w-full h-full object-cover object-center"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#090e1c] via-transparent to-black/20 pointer-events-none"></div>
-
-            {/* Floating Live Feature Pill (Top Right / Left) */}
-            <motion.div 
-              animate={{ y: [0, -4, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 p-2 sm:p-2.5 rounded-xl bg-slate-950/90 backdrop-blur-md border border-blue-500/40 shadow-lg text-[10px] sm:text-xs font-bold text-white flex items-center gap-2 max-w-[220px]"
-            >
-              <div className="p-1.5 rounded-lg bg-blue-600/30 text-sky-400 border border-blue-500/40 shrink-0">
-                <activeShowcase.badgeIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+        {/* VISUAL DELIGHT: Interactive Software Showcase Preview Window (Compact & Dynamic) */}
+        {activeShowcase && showcaseTabs.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
+            className="mt-8 sm:mt-12 max-w-4xl mx-auto rounded-2xl bg-gradient-to-b from-[#0e162a] to-[#070c18] border border-blue-500/30 shadow-xl shadow-blue-950/80 p-2.5 sm:p-4 relative overflow-hidden"
+          >
+            {/* Showcase Top Control Bar & Tabs */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pb-3 border-b border-slate-800">
+              
+              {/* System Switcher Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 custom-scrollbar">
+                {showcaseTabs.map((tab) => {
+                  const TabIcon = tab.badgeIcon || Zap;
+                  const isActive = tab.id === activeShowcase.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTabId(tab.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold transition-all whitespace-nowrap ${
+                        isActive 
+                          ? "bg-blue-600 text-white shadow-md shadow-blue-600/30 scale-[1.02]" 
+                          : "bg-slate-900/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-800"
+                      }`}
+                    >
+                      <TabIcon className="w-3 h-3 text-sky-300" />
+                      <span>{language === "ar" ? tab.titleAr : tab.titleEn}</span>
+                    </button>
+                  );
+                })}
               </div>
-              <div>
-                <div className="text-[9px] sm:text-[10px] text-sky-300 font-bold">{language === "ar" ? activeShowcase.tagAr : activeShowcase.tagEn}</div>
-                <div className="text-[10px] sm:text-xs text-white line-clamp-1">{language === "ar" ? activeShowcase.badgeTextAr : activeShowcase.badgeTextEn}</div>
-              </div>
-            </motion.div>
 
-            {/* Floating Stat Pill (Bottom Left / Right) */}
-            <motion.div 
-              animate={{ y: [0, 4, 0] }}
-              transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute bottom-2.5 left-2.5 sm:bottom-4 sm:left-4 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg bg-slate-950/90 backdrop-blur-md border border-emerald-500/40 shadow-lg flex items-center gap-1.5 text-[10px] sm:text-xs font-extrabold text-emerald-400"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              <span>{activeShowcase.floatingStat}</span>
-            </motion.div>
-
-            {/* Hover overlay button to open details */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 backdrop-blur-xs transition-opacity duration-200">
+              {/* View Project Action */}
               <button
                 onClick={handleOpenShowcaseDetail}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-all duration-200"
+                className="text-[11px] font-bold text-sky-400 hover:text-sky-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-950/60 border border-blue-500/30 hover:border-blue-400 transition-colors self-end sm:self-center"
               >
-                <span>{language === "ar" ? "استعراض تفاصيل وباقات هذا النظام" : "Explore System Packages"}</span>
-                <ArrowIcon className="w-3.5 h-3.5" />
+                <Monitor className="w-3 h-3" />
+                <span>{language === "ar" ? "معاينة كامل الشاشات" : "View Full Screens"}</span>
               </button>
             </div>
-          </div>
-        </motion.div>
+
+            {/* Showcase Screen Frame with Floating Highlights */}
+            <div className="relative mt-3 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 aspect-[16/9] max-h-[260px] sm:max-h-[340px] group">
+              <motion.img
+                key={activeShowcase.image}
+                initial={{ opacity: 0, scale: 1.03 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+                src={activeShowcase.image}
+                alt={language === "ar" ? activeShowcase.titleAr : activeShowcase.titleEn}
+                className="w-full h-full object-cover object-center"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#090e1c] via-transparent to-black/20 pointer-events-none"></div>
+
+              {/* Floating Live Feature Pill (Top Right / Left) */}
+              <motion.div 
+                animate={{ y: [0, -4, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute top-2.5 right-2.5 sm:top-4 sm:right-4 p-2 sm:p-2.5 rounded-xl bg-slate-950/90 backdrop-blur-md border border-blue-500/40 shadow-lg text-[10px] sm:text-xs font-bold text-white flex items-center gap-2 max-w-[220px]"
+              >
+                <div className="p-1.5 rounded-lg bg-blue-600/30 text-sky-400 border border-blue-500/40 shrink-0">
+                  <activeShowcase.badgeIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                </div>
+                <div>
+                  <div className="text-[9px] sm:text-[10px] text-sky-300 font-bold">{language === "ar" ? activeShowcase.tagAr : activeShowcase.tagEn}</div>
+                  <div className="text-[10px] sm:text-xs text-white line-clamp-1">{language === "ar" ? activeShowcase.badgeTextAr : activeShowcase.badgeTextEn}</div>
+                </div>
+              </motion.div>
+
+              {/* Floating Stat Pill (Bottom Left / Right) */}
+              <motion.div 
+                animate={{ y: [0, 4, 0] }}
+                transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute bottom-2.5 left-2.5 sm:bottom-4 sm:left-4 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg bg-slate-950/90 backdrop-blur-md border border-emerald-500/40 shadow-lg flex items-center gap-1.5 text-[10px] sm:text-xs font-extrabold text-emerald-400"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                <span>{activeShowcase.floatingStat}</span>
+              </motion.div>
+
+              {/* Hover overlay button to open details */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/40 backdrop-blur-xs transition-opacity duration-200">
+                <button
+                  onClick={handleOpenShowcaseDetail}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-all duration-200"
+                >
+                  <span>{language === "ar" ? "استعراض تفاصيل وباقات هذا النظام" : "Explore System Packages"}</span>
+                  <ArrowIcon className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Clear, Customer-Friendly Feature Pillars */}
         <div className="mt-8 sm:mt-10 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-4xl mx-auto">
