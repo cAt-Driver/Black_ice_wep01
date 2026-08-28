@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import confetti from "canvas-confetti";
 import { 
   Project, 
@@ -24,7 +24,7 @@ import {
   INITIAL_TESTIMONIALS,
   INITIAL_CATEGORIES 
 } from "../data/mockData";
-import { db, doc, onSnapshot, setDoc } from "../lib/firebase";
+import { db, doc, onSnapshot, setDoc, getDoc } from "../lib/firebase";
 
 export interface ToastMessage {
   id: string;
@@ -256,35 +256,65 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  // Keep a fresh ref to latest state to avoid race conditions during cloud sync
+  const stateRef = useRef({
+    projects,
+    teamMembers,
+    services,
+    testimonials,
+    categories,
+    users,
+    siteSettings,
+    inquiries,
+    notifications
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      projects,
+      teamMembers,
+      services,
+      testimonials,
+      categories,
+      users,
+      siteSettings,
+      inquiries,
+      notifications
+    };
+  }, [projects, teamMembers, services, testimonials, categories, users, siteSettings, inquiries, notifications]);
+
   // 1. Real-time Cloud Synchronization Listener with Firebase Firestore
   useEffect(() => {
+    let isSubscribed = true;
     try {
       const docRef = doc(db, "global_settings", FIRESTORE_DOC_KEY);
+      
       const unsubscribe = onSnapshot(docRef, (snapshot) => {
+        if (!isSubscribed) return;
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (data) {
-            if (Array.isArray(data.projects) && data.projects.length > 0) {
+            if (Array.isArray(data.projects)) {
               setProjects(data.projects);
               localStorage.setItem("novacoders_projects_v2", JSON.stringify(data.projects));
             }
-            if (Array.isArray(data.teamMembers) && data.teamMembers.length > 0) {
+            if (Array.isArray(data.teamMembers)) {
               setTeamMembers(data.teamMembers);
               localStorage.setItem("novacoders_team_members_v2", JSON.stringify(data.teamMembers));
             }
-            if (Array.isArray(data.services) && data.services.length > 0) {
+            if (Array.isArray(data.services)) {
               setServices(data.services);
               localStorage.setItem("novacoders_services_v2", JSON.stringify(data.services));
             }
-            if (Array.isArray(data.testimonials) && data.testimonials.length > 0) {
+            if (Array.isArray(data.testimonials)) {
               setTestimonials(data.testimonials);
               localStorage.setItem("novacoders_testimonials_v2", JSON.stringify(data.testimonials));
             }
-            if (Array.isArray(data.categories) && data.categories.length > 0) {
+            if (Array.isArray(data.categories)) {
               setCategories(data.categories);
               localStorage.setItem("novacoders_categories_v2", JSON.stringify(data.categories));
             }
-            if (Array.isArray(data.users) && data.users.length > 0) {
+            if (Array.isArray(data.users)) {
               setUsers(data.users);
               localStorage.setItem("novacoders_users_list_v2", JSON.stringify(data.users));
             }
@@ -305,15 +335,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } else {
           // Document does not exist in Firestore yet -> Initial Seed Push
           const initialPayload = {
-            projects: INITIAL_PROJECTS,
-            teamMembers: TEAM_MEMBERS,
-            services: INITIAL_SERVICES,
-            testimonials: INITIAL_TESTIMONIALS,
-            categories: INITIAL_CATEGORIES,
-            users: DEFAULT_USERS,
-            siteSettings: DEFAULT_SITE_SETTINGS,
-            inquiries: INITIAL_INQUIRIES,
-            notifications: INITIAL_NOTIFICATIONS,
+            projects: stateRef.current.projects.length > 0 ? stateRef.current.projects : INITIAL_PROJECTS,
+            teamMembers: stateRef.current.teamMembers.length > 0 ? stateRef.current.teamMembers : TEAM_MEMBERS,
+            services: stateRef.current.services.length > 0 ? stateRef.current.services : INITIAL_SERVICES,
+            testimonials: stateRef.current.testimonials.length > 0 ? stateRef.current.testimonials : INITIAL_TESTIMONIALS,
+            categories: stateRef.current.categories.length > 0 ? stateRef.current.categories : INITIAL_CATEGORIES,
+            users: stateRef.current.users.length > 0 ? stateRef.current.users : DEFAULT_USERS,
+            siteSettings: stateRef.current.siteSettings || DEFAULT_SITE_SETTINGS,
+            inquiries: stateRef.current.inquiries || INITIAL_INQUIRIES,
+            notifications: stateRef.current.notifications || INITIAL_NOTIFICATIONS,
             lastUpdated: new Date().toISOString()
           };
           setDoc(docRef, initialPayload, { merge: true }).catch(console.error);
@@ -323,7 +353,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.warn("Firestore onSnapshot error:", error);
       });
 
-      return () => unsubscribe();
+      return () => {
+        isSubscribed = false;
+        unsubscribe();
+      };
     } catch (e) {
       console.warn("Firebase listener initialization error:", e);
     }
@@ -334,15 +367,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const docRef = doc(db, "global_settings", FIRESTORE_DOC_KEY);
       const payload = {
-        projects,
-        teamMembers,
-        services,
-        testimonials,
-        categories,
-        users,
-        siteSettings,
-        inquiries,
-        notifications,
+        projects: overrideData?.projects ?? stateRef.current.projects,
+        teamMembers: overrideData?.teamMembers ?? stateRef.current.teamMembers,
+        services: overrideData?.services ?? stateRef.current.services,
+        testimonials: overrideData?.testimonials ?? stateRef.current.testimonials,
+        categories: overrideData?.categories ?? stateRef.current.categories,
+        users: overrideData?.users ?? stateRef.current.users,
+        siteSettings: overrideData?.siteSettings ?? stateRef.current.siteSettings,
+        inquiries: overrideData?.inquiries ?? stateRef.current.inquiries,
+        notifications: overrideData?.notifications ?? stateRef.current.notifications,
         lastUpdated: new Date().toISOString(),
         ...overrideData
       };
