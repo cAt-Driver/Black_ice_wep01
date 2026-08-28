@@ -283,6 +283,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [projects, teamMembers, services, testimonials, categories, users, siteSettings, inquiries, notifications]);
 
+  // Safe localStorage helper
+  const safeSetItem = (key: string, value: any) => {
+    try {
+      localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
+    } catch (e) {
+      console.warn(`SafeStorage warning for ${key}:`, e);
+    }
+  };
+
   // 1. Real-time Cloud Synchronization Listener with Firebase Firestore
   useEffect(() => {
     let isSubscribed = true;
@@ -296,39 +305,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (data) {
             if (Array.isArray(data.projects)) {
               setProjects(data.projects);
-              localStorage.setItem("novacoders_projects_v2", JSON.stringify(data.projects));
+              safeSetItem("novacoders_projects_v2", data.projects);
             }
             if (Array.isArray(data.teamMembers)) {
               setTeamMembers(data.teamMembers);
-              localStorage.setItem("novacoders_team_members_v2", JSON.stringify(data.teamMembers));
+              safeSetItem("novacoders_team_members_v2", data.teamMembers);
             }
             if (Array.isArray(data.services)) {
               setServices(data.services);
-              localStorage.setItem("novacoders_services_v2", JSON.stringify(data.services));
+              safeSetItem("novacoders_services_v2", data.services);
             }
             if (Array.isArray(data.testimonials)) {
               setTestimonials(data.testimonials);
-              localStorage.setItem("novacoders_testimonials_v2", JSON.stringify(data.testimonials));
+              safeSetItem("novacoders_testimonials_v2", data.testimonials);
             }
             if (Array.isArray(data.categories)) {
               setCategories(data.categories);
-              localStorage.setItem("novacoders_categories_v2", JSON.stringify(data.categories));
+              safeSetItem("novacoders_categories_v2", data.categories);
             }
             if (Array.isArray(data.users)) {
               setUsers(data.users);
-              localStorage.setItem("novacoders_users_list_v2", JSON.stringify(data.users));
+              safeSetItem("novacoders_users_list_v2", data.users);
             }
             if (data.siteSettings && typeof data.siteSettings === "object") {
               setSiteSettings(data.siteSettings);
-              localStorage.setItem("novacoders_site_settings_v2", JSON.stringify(data.siteSettings));
+              safeSetItem("novacoders_site_settings_v2", data.siteSettings);
             }
             if (Array.isArray(data.inquiries)) {
               setInquiries(data.inquiries);
-              localStorage.setItem("novacoders_inquiries_v2", JSON.stringify(data.inquiries));
+              safeSetItem("novacoders_inquiries_v2", data.inquiries);
             }
             if (Array.isArray(data.notifications)) {
               setNotifications(data.notifications);
-              localStorage.setItem("novacoders_notifs_v2", JSON.stringify(data.notifications));
+              safeSetItem("novacoders_notifs_v2", data.notifications);
             }
             setIsCloudSynced(true);
           }
@@ -393,46 +402,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Sync to localStorage as fast client cache
   useEffect(() => {
-    localStorage.setItem("novacoders_users_list_v2", JSON.stringify(users));
+    safeSetItem("novacoders_users_list_v2", users);
   }, [users]);
 
   useEffect(() => {
-    localStorage.setItem("novacoders_site_settings_v2", JSON.stringify(siteSettings));
+    safeSetItem("novacoders_site_settings_v2", siteSettings);
   }, [siteSettings]);
 
   useEffect(() => {
-    localStorage.setItem("novacoders_team_members_v2", JSON.stringify(teamMembers));
+    safeSetItem("novacoders_team_members_v2", teamMembers);
   }, [teamMembers]);
 
   useEffect(() => {
-    localStorage.setItem("novacoders_categories_v2", JSON.stringify(categories));
+    safeSetItem("novacoders_categories_v2", categories);
   }, [categories]);
 
   useEffect(() => {
-    localStorage.setItem("novacoders_services_v2", JSON.stringify(services));
+    safeSetItem("novacoders_services_v2", services);
   }, [services]);
 
   useEffect(() => {
-    localStorage.setItem("novacoders_testimonials_v2", JSON.stringify(testimonials));
+    safeSetItem("novacoders_testimonials_v2", testimonials);
   }, [testimonials]);
 
   useEffect(() => {
-    localStorage.setItem("novacoders_projects_v2", JSON.stringify(projects));
+    safeSetItem("novacoders_projects_v2", projects);
   }, [projects]);
 
   useEffect(() => {
-    localStorage.setItem("novacoders_inquiries_v2", JSON.stringify(inquiries));
+    safeSetItem("novacoders_inquiries_v2", inquiries);
   }, [inquiries]);
 
   useEffect(() => {
-    localStorage.setItem("novacoders_notifs_v2", JSON.stringify(notifications));
+    safeSetItem("novacoders_notifs_v2", notifications);
   }, [notifications]);
 
   useEffect(() => {
     if (teamUser) {
-      localStorage.setItem("novacoders_auth_user_v2", JSON.stringify(teamUser));
+      safeSetItem("novacoders_auth_user_v2", teamUser);
     } else {
-      localStorage.removeItem("novacoders_auth_user_v2");
+      try {
+        localStorage.removeItem("novacoders_auth_user_v2");
+      } catch {
+        // ignore
+      }
     }
   }, [teamUser]);
 

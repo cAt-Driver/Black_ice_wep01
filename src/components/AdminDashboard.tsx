@@ -47,6 +47,7 @@ import {
   ClientPartnerItem,
   CategoryItem
 } from "../types";
+import { compressImage } from "../utils/imageCompressor";
 
 export const AdminDashboard: React.FC = () => {
   const { t, language, isRtl } = useLanguage();
@@ -1255,19 +1256,18 @@ export const AdminDashboard: React.FC = () => {
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                const res = ev.target?.result as string;
-                                if (res) {
-                                  setCoverImage(res);
-                                  // Also add to gallery if gallery only has default or is empty
-                                  setGalleryImages((prev) => prev.length === 0 ? [res] : prev);
+                              try {
+                                const optimized = await compressImage(file, 1200, 800, 0.75);
+                                if (optimized) {
+                                  setCoverImage(optimized);
+                                  setGalleryImages((prev) => prev.length === 0 ? [optimized] : prev);
                                 }
-                              };
-                              reader.readAsDataURL(file);
+                              } catch (err) {
+                                console.error("Error compressing cover image:", err);
+                              }
                             }
                           }}
                         />
@@ -1338,19 +1338,19 @@ export const AdminDashboard: React.FC = () => {
                         accept="image/*"
                         multiple
                         className="hidden"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const files = e.target.files;
                           if (files && files.length > 0) {
-                            Array.from(files).forEach((file) => {
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                const res = ev.target?.result as string;
-                                if (res) {
-                                  setGalleryImages((prev) => [...prev, res]);
+                            for (const file of Array.from(files)) {
+                              try {
+                                const optimized = await compressImage(file, 1200, 800, 0.75);
+                                if (optimized) {
+                                  setGalleryImages((prev) => [...prev, optimized]);
                                 }
-                              };
-                              reader.readAsDataURL(file);
-                            });
+                              } catch (err) {
+                                console.error("Error compressing gallery image:", err);
+                              }
+                            }
                           }
                         }}
                       />
@@ -1821,15 +1821,15 @@ export const AdminDashboard: React.FC = () => {
                             type="file"
                             accept="image/*"
                             className="hidden"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (ev) => {
-                                  const res = ev.target?.result as string;
-                                  if (res) setUserAvatar(res);
-                                };
-                                reader.readAsDataURL(file);
+                                try {
+                                  const optimized = await compressImage(file, 400, 400, 0.8);
+                                  if (optimized) setUserAvatar(optimized);
+                                } catch (err) {
+                                  console.error("Error compressing user avatar:", err);
+                                }
                               }
                             }}
                           />
@@ -1954,17 +1954,17 @@ export const AdminDashboard: React.FC = () => {
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                const res = ev.target?.result as string;
-                                if (res) {
-                                  setSiteForm((prev) => ({ ...prev, logoUrl: res }));
+                              try {
+                                const optimized = await compressImage(file, 600, 600, 0.85);
+                                if (optimized) {
+                                  setSiteForm((prev) => ({ ...prev, logoUrl: optimized }));
                                 }
-                              };
-                              reader.readAsDataURL(file);
+                              } catch (err) {
+                                console.error("Error compressing logo:", err);
+                              }
                             }
                           }}
                         />
@@ -2439,17 +2439,17 @@ export const AdminDashboard: React.FC = () => {
                             type="file"
                             accept="image/*"
                             className="hidden"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (ev) => {
-                                  const res = ev.target?.result as string;
-                                  if (res) {
-                                    setMemberForm((prev) => ({ ...prev, avatar: res }));
+                                try {
+                                  const optimized = await compressImage(file, 400, 400, 0.8);
+                                  if (optimized) {
+                                    setMemberForm((prev) => ({ ...prev, avatar: optimized }));
                                   }
-                                };
-                                reader.readAsDataURL(file);
+                                } catch (err) {
+                                  console.error("Error compressing member avatar:", err);
+                                }
                               }
                             }}
                           />
@@ -2810,17 +2810,17 @@ export const AdminDashboard: React.FC = () => {
                             type="file"
                             accept="image/*"
                             className="hidden"
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file) {
-                                const reader = new FileReader();
-                                reader.onload = (ev) => {
-                                  const res = ev.target?.result as string;
-                                  if (res) {
-                                    setTestimonialForm((prev) => ({ ...prev, avatar: res }));
+                                try {
+                                  const optimized = await compressImage(file, 400, 400, 0.8);
+                                  if (optimized) {
+                                    setTestimonialForm((prev) => ({ ...prev, avatar: optimized }));
                                   }
-                                };
-                                reader.readAsDataURL(file);
+                                } catch (err) {
+                                  console.error("Error compressing testimonial avatar:", err);
+                                }
                               }
                             }}
                           />
