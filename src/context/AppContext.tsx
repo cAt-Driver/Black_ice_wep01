@@ -10,7 +10,7 @@ import {
   SiteSettings, 
   TeamMember, 
   ServiceItem, 
-  TestimonialItem,
+  TestimonialItem, 
   CategoryItem 
 } from "../types";
 import { 
@@ -21,10 +21,18 @@ import {
   DEFAULT_USERS, 
   DEFAULT_SITE_SETTINGS, 
   INITIAL_SERVICES, 
-  INITIAL_TESTIMONIALS,
+  INITIAL_TESTIMONIALS, 
   INITIAL_CATEGORIES 
 } from "../data/mockData";
-import { db, doc, onSnapshot, setDoc, getDoc } from "../lib/firebase";
+import { 
+  db, 
+  collection, 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  deleteDoc, 
+  getDocs 
+} from "../lib/firebase";
 
 export interface ToastMessage {
   id: string;
@@ -69,49 +77,49 @@ interface AppContextType {
   logoutTeamMember: () => void;
 
   // User Management
-  addUser: (user: Omit<AppUser, "id" | "createdAt">) => void;
-  updateUser: (id: string, updated: Partial<AppUser>) => void;
-  deleteUser: (id: string) => boolean;
+  addUser: (user: Omit<AppUser, "id" | "createdAt">) => Promise<void>;
+  updateUser: (id: string, updated: Partial<AppUser>) => Promise<void>;
+  deleteUser: (id: string) => Promise<boolean>;
 
   // Deep CMS & Site Customization
-  updateSiteSettings: (settings: Partial<SiteSettings>) => void;
-  addTeamMember: (member: Omit<TeamMember, "id">) => void;
-  updateTeamMember: (id: string, updated: Partial<TeamMember>) => void;
-  deleteTeamMember: (id: string) => void;
-  addService: (service: Omit<ServiceItem, "id">) => void;
-  updateService: (id: string, updated: Partial<ServiceItem>) => void;
-  deleteService: (id: string) => void;
-  addTestimonial: (test: Omit<TestimonialItem, "id">) => void;
-  updateTestimonial: (id: string, updated: Partial<TestimonialItem>) => void;
-  deleteTestimonial: (id: string) => void;
+  updateSiteSettings: (settings: Partial<SiteSettings>) => Promise<void>;
+  addTeamMember: (member: Omit<TeamMember, "id">) => Promise<void>;
+  updateTeamMember: (id: string, updated: Partial<TeamMember>) => Promise<void>;
+  deleteTeamMember: (id: string) => Promise<void>;
+  addService: (service: Omit<ServiceItem, "id">) => Promise<void>;
+  updateService: (id: string, updated: Partial<ServiceItem>) => Promise<void>;
+  deleteService: (id: string) => Promise<void>;
+  addTestimonial: (test: Omit<TestimonialItem, "id">) => Promise<void>;
+  updateTestimonial: (id: string, updated: Partial<TestimonialItem>) => Promise<void>;
+  deleteTestimonial: (id: string) => Promise<void>;
 
   // Dynamic Categories Management
-  addCategory: (category: Omit<CategoryItem, "id">) => void;
-  updateCategory: (id: string, updated: Partial<CategoryItem>) => void;
-  deleteCategory: (id: string) => boolean;
+  addCategory: (category: Omit<CategoryItem, "id">) => Promise<void>;
+  updateCategory: (id: string, updated: Partial<CategoryItem>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<boolean>;
 
   // Project CRUD
-  addProject: (project: Omit<Project, "id" | "views" | "likes">) => void;
-  updateProject: (id: string, updated: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
-  toggleFeaturedProject: (id: string) => void;
-  likeProject: (id: string) => void;
+  addProject: (project: Omit<Project, "id" | "views" | "likes">) => Promise<void>;
+  updateProject: (id: string, updated: Partial<Project>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
+  toggleFeaturedProject: (id: string) => Promise<void>;
+  likeProject: (id: string) => Promise<void>;
 
   // Inquiries
   submitInquiry: (inquiryData: Omit<ClientInquiry, "id" | "createdAt" | "status">) => Promise<boolean>;
-  updateInquiryStatus: (id: string, status: ClientInquiry["status"]) => void;
-  deleteInquiry: (id: string) => void;
+  updateInquiryStatus: (id: string, status: ClientInquiry["status"]) => Promise<void>;
+  deleteInquiry: (id: string) => Promise<void>;
 
   // Notifications
-  markAllNotificationsRead: () => void;
-  markNotificationRead: (id: string) => void;
-  broadcastNotification: (titleAr: string, titleEn: string, messageAr: string, messageEn: string, type?: NotificationItem["type"]) => void;
+  markAllNotificationsRead: () => Promise<void>;
+  markNotificationRead: (id: string) => Promise<void>;
+  broadcastNotification: (titleAr: string, titleEn: string, messageAr: string, messageEn: string, type?: NotificationItem["type"]) => Promise<void>;
 
   // Toast & UX
   showToast: (title: string, description: string, type?: "success" | "info" | "warning" | "error") => void;
   removeToast: (id: string) => void;
   triggerCelebration: () => void;
-  resetToDefaultData: () => void;
+  resetToDefaultData: () => Promise<void>;
   forceSyncToCloud: () => Promise<void>;
 }
 
@@ -143,105 +151,32 @@ const playSoftChime = () => {
   }
 };
 
-const FIRESTORE_DOC_KEY = "site_data_v2";
+// Helper to remove any undefined values before sending to Firestore
+const sanitizeForFirestore = (obj: any): any => {
+  return JSON.parse(JSON.stringify(obj, (_, val) => {
+    if (val === undefined) return "";
+    return val;
+  }));
+};
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isCloudSynced, setIsCloudSynced] = useState(false);
 
-  // Users for authentication
-  const [users, setUsers] = useState<AppUser[]>(() => {
-    try {
-      const saved = localStorage.getItem("novacoders_users_list_v2");
-      return saved ? JSON.parse(saved) : DEFAULT_USERS;
-    } catch {
-      return DEFAULT_USERS;
-    }
-  });
+  // States initialized with clean empty / default values without reading any localStorage
+  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(TEAM_MEMBERS);
+  const [categories, setCategories] = useState<CategoryItem[]>(INITIAL_CATEGORIES);
+  const [services, setServices] = useState<ServiceItem[]>(INITIAL_SERVICES);
+  const [testimonials, setTestimonials] = useState<TestimonialItem[]>(INITIAL_TESTIMONIALS);
+  const [users, setUsers] = useState<AppUser[]>(DEFAULT_USERS);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS);
+  const [inquiries, setInquiries] = useState<ClientInquiry[]>(INITIAL_INQUIRIES);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
-  // Site Settings
-  const [siteSettings, setSiteSettings] = useState<SiteSettings>(() => {
-    try {
-      const saved = localStorage.getItem("novacoders_site_settings_v2");
-      return saved ? { ...DEFAULT_SITE_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SITE_SETTINGS;
-    } catch {
-      return DEFAULT_SITE_SETTINGS;
-    }
-  });
-
-  // Team members
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(() => {
-    try {
-      const saved = localStorage.getItem("novacoders_team_members_v2");
-      return saved ? JSON.parse(saved) : TEAM_MEMBERS;
-    } catch {
-      return TEAM_MEMBERS;
-    }
-  });
-
-  // Categories (Dynamic)
-  const [categories, setCategories] = useState<CategoryItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("novacoders_categories_v2");
-      return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
-    } catch {
-      return INITIAL_CATEGORIES;
-    }
-  });
-
-  // Services
-  const [services, setServices] = useState<ServiceItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("novacoders_services_v2");
-      return saved ? JSON.parse(saved) : INITIAL_SERVICES;
-    } catch {
-      return INITIAL_SERVICES;
-    }
-  });
-
-  // Testimonials / Clients & Partners
-  const [testimonials, setTestimonials] = useState<TestimonialItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("novacoders_testimonials_v2");
-      return saved ? JSON.parse(saved) : INITIAL_TESTIMONIALS;
-    } catch {
-      return INITIAL_TESTIMONIALS;
-    }
-  });
-
-  // Projects
-  const [projects, setProjects] = useState<Project[]>(() => {
-    try {
-      const saved = localStorage.getItem("novacoders_projects_v2");
-      return saved ? JSON.parse(saved) : INITIAL_PROJECTS;
-    } catch {
-      return INITIAL_PROJECTS;
-    }
-  });
-
-  // Inquiries
-  const [inquiries, setInquiries] = useState<ClientInquiry[]>(() => {
-    try {
-      const saved = localStorage.getItem("novacoders_inquiries_v2");
-      return saved ? JSON.parse(saved) : INITIAL_INQUIRIES;
-    } catch {
-      return INITIAL_INQUIRIES;
-    }
-  });
-
-  // Notifications
-  const [notifications, setNotifications] = useState<NotificationItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("novacoders_notifs_v2");
-      return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
-    } catch {
-      return INITIAL_NOTIFICATIONS;
-    }
-  });
-
-  // Current logged in user
+  // Session user (stored in sessionStorage for page refresh)
   const [teamUser, setTeamUser] = useState<TeamUser | null>(() => {
     try {
-      const saved = localStorage.getItem("novacoders_auth_user_v2");
+      const saved = sessionStorage.getItem("novacoders_session_user");
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -256,207 +191,182 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // Keep a fresh ref to latest state to avoid race conditions during cloud sync
-  const stateRef = useRef({
-    projects,
-    teamMembers,
-    services,
-    testimonials,
-    categories,
-    users,
-    siteSettings,
-    inquiries,
-    notifications
-  });
-
+  // Clear legacy localStorage data so it never causes conflicts
   useEffect(() => {
-    stateRef.current = {
-      projects,
-      teamMembers,
-      services,
-      testimonials,
-      categories,
-      users,
-      siteSettings,
-      inquiries,
-      notifications
-    };
-  }, [projects, teamMembers, services, testimonials, categories, users, siteSettings, inquiries, notifications]);
-
-  // Safe localStorage helper
-  const safeSetItem = (key: string, value: any) => {
     try {
-      localStorage.setItem(key, typeof value === "string" ? value : JSON.stringify(value));
-    } catch (e) {
-      console.warn(`SafeStorage warning for ${key}:`, e);
-    }
-  };
-
-  // Helper to remove any undefined values before sending to Firestore
-  const sanitizeForFirestore = (obj: any): any => {
-    return JSON.parse(JSON.stringify(obj, (_, val) => {
-      if (val === undefined) return "";
-      return val;
-    }));
-  };
-
-  // 1. Real-time Cloud Synchronization Listener with Firebase Firestore
-  useEffect(() => {
-    let isSubscribed = true;
-    try {
-      const docRef = doc(db, "global_settings", FIRESTORE_DOC_KEY);
-      
-      const unsubscribe = onSnapshot(docRef, (snapshot) => {
-        if (!isSubscribed) return;
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          if (data) {
-            if (Array.isArray(data.projects) && data.projects.length > 0) {
-              setProjects(data.projects);
-              safeSetItem("novacoders_projects_v2", data.projects);
-            }
-            if (Array.isArray(data.teamMembers) && data.teamMembers.length > 0) {
-              setTeamMembers(data.teamMembers);
-              safeSetItem("novacoders_team_members_v2", data.teamMembers);
-            }
-            if (Array.isArray(data.services) && data.services.length > 0) {
-              setServices(data.services);
-              safeSetItem("novacoders_services_v2", data.services);
-            }
-            if (Array.isArray(data.testimonials) && data.testimonials.length > 0) {
-              setTestimonials(data.testimonials);
-              safeSetItem("novacoders_testimonials_v2", data.testimonials);
-            }
-            if (Array.isArray(data.categories) && data.categories.length > 0) {
-              setCategories(data.categories);
-              safeSetItem("novacoders_categories_v2", data.categories);
-            }
-            if (Array.isArray(data.users) && data.users.length > 0) {
-              setUsers(data.users);
-              safeSetItem("novacoders_users_list_v2", data.users);
-            }
-            if (data.siteSettings && typeof data.siteSettings === "object") {
-              setSiteSettings(data.siteSettings);
-              safeSetItem("novacoders_site_settings_v2", data.siteSettings);
-            }
-            if (Array.isArray(data.inquiries)) {
-              setInquiries(data.inquiries);
-              safeSetItem("novacoders_inquiries_v2", data.inquiries);
-            }
-            if (Array.isArray(data.notifications)) {
-              setNotifications(data.notifications);
-              safeSetItem("novacoders_notifs_v2", data.notifications);
-            }
-            setIsCloudSynced(true);
-          }
-        } else {
-          // Document does not exist in Firestore yet -> Initial Seed Push
-          const initialPayload = sanitizeForFirestore({
-            projects: stateRef.current.projects.length > 0 ? stateRef.current.projects : INITIAL_PROJECTS,
-            teamMembers: stateRef.current.teamMembers.length > 0 ? stateRef.current.teamMembers : TEAM_MEMBERS,
-            services: stateRef.current.services.length > 0 ? stateRef.current.services : INITIAL_SERVICES,
-            testimonials: stateRef.current.testimonials.length > 0 ? stateRef.current.testimonials : INITIAL_TESTIMONIALS,
-            categories: stateRef.current.categories.length > 0 ? stateRef.current.categories : INITIAL_CATEGORIES,
-            users: stateRef.current.users.length > 0 ? stateRef.current.users : DEFAULT_USERS,
-            siteSettings: stateRef.current.siteSettings || DEFAULT_SITE_SETTINGS,
-            inquiries: stateRef.current.inquiries || INITIAL_INQUIRIES,
-            notifications: stateRef.current.notifications || INITIAL_NOTIFICATIONS,
-            lastUpdated: new Date().toISOString()
-          });
-          setDoc(docRef, initialPayload, { merge: true }).catch(console.error);
-          setIsCloudSynced(true);
-        }
-      }, (error) => {
-        console.warn("Firestore onSnapshot error:", error);
-      });
-
-      return () => {
-        isSubscribed = false;
-        unsubscribe();
-      };
-    } catch (e) {
-      console.warn("Firebase listener initialization error:", e);
+      localStorage.removeItem("novacoders_projects_v2");
+      localStorage.removeItem("novacoders_inquiries_v2");
+      localStorage.removeItem("novacoders_notifs_v2");
+      localStorage.removeItem("novacoders_users_list_v2");
+      localStorage.removeItem("novacoders_site_settings_v2");
+      localStorage.removeItem("novacoders_team_members_v2");
+      localStorage.removeItem("novacoders_services_v2");
+      localStorage.removeItem("novacoders_testimonials_v2");
+      localStorage.removeItem("novacoders_categories_v2");
+      localStorage.removeItem("novacoders_auth_user_v2");
+    } catch {
+      // ignore
     }
   }, []);
 
-  // Sync to Cloud helper
-  const syncToCloud = async (overrideData?: Partial<any>) => {
+  // Update session storage for current logged in user
+  useEffect(() => {
     try {
-      const docRef = doc(db, "global_settings", FIRESTORE_DOC_KEY);
-      const rawPayload = {
-        projects: overrideData?.projects ?? stateRef.current.projects,
-        teamMembers: overrideData?.teamMembers ?? stateRef.current.teamMembers,
-        services: overrideData?.services ?? stateRef.current.services,
-        testimonials: overrideData?.testimonials ?? stateRef.current.testimonials,
-        categories: overrideData?.categories ?? stateRef.current.categories,
-        users: overrideData?.users ?? stateRef.current.users,
-        siteSettings: overrideData?.siteSettings ?? stateRef.current.siteSettings,
-        inquiries: overrideData?.inquiries ?? stateRef.current.inquiries,
-        notifications: overrideData?.notifications ?? stateRef.current.notifications,
-        lastUpdated: new Date().toISOString(),
-        ...overrideData
-      };
-      const cleanPayload = sanitizeForFirestore(rawPayload);
-      await setDoc(docRef, cleanPayload, { merge: true });
-      setIsCloudSynced(true);
-    } catch (err) {
-      console.error("Cloud save failed:", err);
-    }
-  };
-
-  const forceSyncToCloud = async () => {
-    await syncToCloud();
-    showToast("تمت المزامنة السحابية", "تم حفظ وتحديث كافة البيانات في قاعدة البيانات السحابية الحية بنجاح.", "success");
-  };
-
-  // Sync to localStorage as fast client cache
-  useEffect(() => {
-    safeSetItem("novacoders_users_list_v2", users);
-  }, [users]);
-
-  useEffect(() => {
-    safeSetItem("novacoders_site_settings_v2", siteSettings);
-  }, [siteSettings]);
-
-  useEffect(() => {
-    safeSetItem("novacoders_team_members_v2", teamMembers);
-  }, [teamMembers]);
-
-  useEffect(() => {
-    safeSetItem("novacoders_categories_v2", categories);
-  }, [categories]);
-
-  useEffect(() => {
-    safeSetItem("novacoders_services_v2", services);
-  }, [services]);
-
-  useEffect(() => {
-    safeSetItem("novacoders_testimonials_v2", testimonials);
-  }, [testimonials]);
-
-  useEffect(() => {
-    safeSetItem("novacoders_projects_v2", projects);
-  }, [projects]);
-
-  useEffect(() => {
-    safeSetItem("novacoders_inquiries_v2", inquiries);
-  }, [inquiries]);
-
-  useEffect(() => {
-    safeSetItem("novacoders_notifs_v2", notifications);
-  }, [notifications]);
-
-  useEffect(() => {
-    if (teamUser) {
-      safeSetItem("novacoders_auth_user_v2", teamUser);
-    } else {
-      try {
-        localStorage.removeItem("novacoders_auth_user_v2");
-      } catch {
-        // ignore
+      if (teamUser) {
+        sessionStorage.setItem("novacoders_session_user", JSON.stringify(teamUser));
+      } else {
+        sessionStorage.removeItem("novacoders_session_user");
       }
+    } catch {
+      // ignore
     }
   }, [teamUser]);
+
+  // =========================================================================
+  // 1. Direct Real-time Firestore Cloud Listeners
+  // =========================================================================
+  useEffect(() => {
+    const unsubs: (() => void)[] = [];
+
+    // Projects Listener
+    try {
+      const unsubProjects = onSnapshot(collection(db, "projects"), (snapshot) => {
+        const list: Project[] = snapshot.docs.map((d) => ({
+          ...d.data(),
+          id: d.id,
+        })) as Project[];
+        setProjects(list);
+        setIsCloudSynced(true);
+      }, (err) => console.warn("Projects sync listener:", err));
+      unsubs.push(unsubProjects);
+    } catch (e) {
+      console.warn("Projects listener err:", e);
+    }
+
+    // Team Members Listener
+    try {
+      const unsubTeam = onSnapshot(collection(db, "team_members"), (snapshot) => {
+        const list: TeamMember[] = snapshot.docs.map((d) => ({
+          ...d.data(),
+          id: d.id,
+        })) as TeamMember[];
+        setTeamMembers(list);
+      }, (err) => console.warn("Team sync listener:", err));
+      unsubs.push(unsubTeam);
+    } catch (e) {
+      console.warn("Team listener err:", e);
+    }
+
+    // Users Listener
+    try {
+      const unsubUsers = onSnapshot(collection(db, "users"), (snapshot) => {
+        if (snapshot.empty) {
+          // Seed default admin users if cloud users collection is empty
+          DEFAULT_USERS.forEach((u) => {
+            setDoc(doc(db, "users", u.id), sanitizeForFirestore(u)).catch(console.error);
+          });
+          setUsers(DEFAULT_USERS);
+        } else {
+          const list: AppUser[] = snapshot.docs.map((d) => ({
+            ...d.data(),
+            id: d.id,
+          })) as AppUser[];
+          setUsers(list);
+        }
+      }, (err) => console.warn("Users sync listener:", err));
+      unsubs.push(unsubUsers);
+    } catch (e) {
+      console.warn("Users listener err:", e);
+    }
+
+    // Categories Listener
+    try {
+      const unsubCategories = onSnapshot(collection(db, "categories"), (snapshot) => {
+        const list: CategoryItem[] = snapshot.docs.map((d) => ({
+          ...d.data(),
+          id: d.id,
+        })) as CategoryItem[];
+        setCategories(list);
+      }, (err) => console.warn("Categories sync listener:", err));
+      unsubs.push(unsubCategories);
+    } catch (e) {
+      console.warn("Categories listener err:", e);
+    }
+
+    // Services Listener
+    try {
+      const unsubServices = onSnapshot(collection(db, "services"), (snapshot) => {
+        const list: ServiceItem[] = snapshot.docs.map((d) => ({
+          ...d.data(),
+          id: d.id,
+        })) as ServiceItem[];
+        setServices(list);
+      }, (err) => console.warn("Services sync listener:", err));
+      unsubs.push(unsubServices);
+    } catch (e) {
+      console.warn("Services listener err:", e);
+    }
+
+    // Testimonials Listener
+    try {
+      const unsubTestimonials = onSnapshot(collection(db, "testimonials"), (snapshot) => {
+        const list: TestimonialItem[] = snapshot.docs.map((d) => ({
+          ...d.data(),
+          id: d.id,
+        })) as TestimonialItem[];
+        setTestimonials(list);
+      }, (err) => console.warn("Testimonials sync listener:", err));
+      unsubs.push(unsubTestimonials);
+    } catch (e) {
+      console.warn("Testimonials listener err:", e);
+    }
+
+    // Inquiries Listener
+    try {
+      const unsubInquiries = onSnapshot(collection(db, "inquiries"), (snapshot) => {
+        const list: ClientInquiry[] = snapshot.docs.map((d) => ({
+          ...d.data(),
+          id: d.id,
+        })) as ClientInquiry[];
+        setInquiries(list);
+      }, (err) => console.warn("Inquiries sync listener:", err));
+      unsubs.push(unsubInquiries);
+    } catch (e) {
+      console.warn("Inquiries listener err:", e);
+    }
+
+    // Notifications Listener
+    try {
+      const unsubNotifications = onSnapshot(collection(db, "notifications"), (snapshot) => {
+        const list: NotificationItem[] = snapshot.docs.map((d) => ({
+          ...d.data(),
+          id: d.id,
+        })) as NotificationItem[];
+        setNotifications(list);
+      }, (err) => console.warn("Notifications sync listener:", err));
+      unsubs.push(unsubNotifications);
+    } catch (e) {
+      console.warn("Notifications listener err:", e);
+    }
+
+    // Site Settings Document Listener
+    try {
+      const unsubSettings = onSnapshot(doc(db, "site_settings", "general"), (snapshot) => {
+        if (snapshot.exists()) {
+          setSiteSettings(snapshot.data() as SiteSettings);
+        } else {
+          setDoc(doc(db, "site_settings", "general"), sanitizeForFirestore(DEFAULT_SITE_SETTINGS)).catch(console.error);
+        }
+      }, (err) => console.warn("Site settings sync listener:", err));
+      unsubs.push(unsubSettings);
+    } catch (e) {
+      console.warn("Site settings listener err:", e);
+    }
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, []);
 
   const showToast = (title: string, description: string, type: "success" | "info" | "warning" | "error" = "info") => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
@@ -489,7 +399,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanInput = usernameOrEmail.trim().toLowerCase();
     const cleanPass = pass.trim();
 
-    // Check in users list
     const foundUser = users.find(
       (u) => 
         (u.username.toLowerCase() === cleanInput || u.email.toLowerCase() === cleanInput) &&
@@ -557,220 +466,307 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast("تسجيل خروج", "تم تسجيل خروجك بأمان.", "info");
   };
 
-  // User Management with Cloud Sync
-  const addUser = (newUser: Omit<AppUser, "id" | "createdAt">) => {
-    const id = `user-${Date.now()}`;
-    const user: AppUser = {
-      ...newUser,
-      id,
-      createdAt: new Date().toISOString(),
-    };
-    const nextUsers = [...users, user];
-    setUsers(nextUsers);
-    syncToCloud({ users: nextUsers });
-    showToast("تمت الإضافة سحابياً", `تمت إضافة المستخدم ${newUser.name} بنجاح`, "success");
+  // =========================================================================
+  // 2. User Management - Cloud Firestore
+  // =========================================================================
+  const addUser = async (newUser: Omit<AppUser, "id" | "createdAt">) => {
+    try {
+      const id = `user-${Date.now()}`;
+      const user: AppUser = {
+        ...newUser,
+        id,
+        createdAt: new Date().toISOString(),
+      };
+      await setDoc(doc(db, "users", id), sanitizeForFirestore(user));
+      showToast("تمت الإضافة سحابياً", `تمت إضافة المستخدم ${newUser.name} بنجاح إلى السحابة`, "success");
+    } catch (err) {
+      console.error("Add user error:", err);
+      showToast("خطأ في الحفظ السحابي", "تعذر حفظ المستخدم في السحابة.", "error");
+    }
   };
 
-  const updateUser = (id: string, updated: Partial<AppUser>) => {
-    const nextUsers = users.map((u) => (u.id === id ? { ...u, ...updated } : u));
-    setUsers(nextUsers);
-    syncToCloud({ users: nextUsers });
-    showToast("تم التحديث سحابياً", "تم حفظ بيانات المستخدم بنجاح.", "success");
+  const updateUser = async (id: string, updated: Partial<AppUser>) => {
+    try {
+      await setDoc(doc(db, "users", id), sanitizeForFirestore(updated), { merge: true });
+      showToast("تم التحديث سحابياً", "تم حفظ بيانات المستخدم في السحابة بنجاح.", "success");
+    } catch (err) {
+      console.error("Update user error:", err);
+      showToast("خطأ في التحديث السحابي", "تعذر تحديث بيانات المستخدم.", "error");
+    }
   };
 
-  const deleteUser = (id: string): boolean => {
+  const deleteUser = async (id: string): Promise<boolean> => {
     if (users.length <= 1) {
       showToast("تنبيه", "لا يمكن حذف آخر مستخدم في لوحة التحكم.", "warning");
       return false;
     }
-    const nextUsers = users.filter((u) => u.id !== id);
-    setUsers(nextUsers);
-    syncToCloud({ users: nextUsers });
-    showToast("تم الحذف سحابياً", "تمت إزالة المستخدم بنجاح.", "info");
-    return true;
-  };
-
-  // Categories CRUD with Cloud Sync
-  const addCategory = (newCat: Omit<CategoryItem, "id">) => {
-    const id = `cat-${Date.now()}`;
-    const category: CategoryItem = {
-      ...newCat,
-      id,
-      key: newCat.key || `cat_${Date.now()}`
-    };
-    const nextCats = [...categories, category];
-    setCategories(nextCats);
-    syncToCloud({ categories: nextCats });
-    showToast("تمت إضافة الفئة سحابياً", `تمت إضافة التصنيف "${newCat.nameAr}" بنجاح`, "success");
-  };
-
-  const updateCategory = (idOrKey: string, updated: Partial<CategoryItem>) => {
-    const nextCats = categories.map((c) => (c.id === idOrKey || c.key === idOrKey ? { ...c, ...updated } : c));
-    setCategories(nextCats);
-    syncToCloud({ categories: nextCats });
-    showToast("تم تحديث التصنيف سحابياً", "تم حفظ تعديلات الفئة بنجاح.", "success");
-  };
-
-  const deleteCategory = (idOrKey: string): boolean => {
-    if (categories.length <= 1) {
-      showToast("تنبيه", "يجب الإبقاء على تصنيف واحد على الأقل للمشاريع.", "warning");
+    try {
+      await deleteDoc(doc(db, "users", id));
+      showToast("تم الحذف سحابياً", "تمت إزالة المستخدم من السحابة بنجاح.", "info");
+      return true;
+    } catch (err) {
+      console.error("Delete user error:", err);
+      showToast("خطأ في الحذف السحابي", "تعذر حذف المستخدم من السحابة.", "error");
       return false;
     }
-    const nextCats = categories.filter((c) => c.id !== idOrKey && c.key !== idOrKey);
-    setCategories(nextCats);
-    syncToCloud({ categories: nextCats });
-    showToast("تم الحذف سحابياً", "تمت إزالة التصنيف بنجاح.", "info");
-    return true;
   };
 
-  // Site Settings with Cloud Sync
-  const updateSiteSettings = (settings: Partial<SiteSettings>) => {
-    const nextSettings = { ...siteSettings, ...settings };
-    setSiteSettings(nextSettings);
-    syncToCloud({ siteSettings: nextSettings });
-    showToast("تم التحديث سحابياً", "تم حفظ إعدادات الموقع ونشرها للجميع بنجاح.", "success");
-  };
-
-  // Team Members CRUD with Cloud Sync
-  const addTeamMember = (member: Omit<TeamMember, "id">) => {
-    const id = `mem-${Date.now()}`;
-    const nextMembers = [...teamMembers, { ...member, id }];
-    setTeamMembers(nextMembers);
-    syncToCloud({ teamMembers: nextMembers });
-    showToast("تمت الإضافة سحابياً", `تمت إضافة المهندس/ة ${member.nameAr} إلى الفريق ونشرها للزوار.`, "success");
-  };
-
-  const updateTeamMember = (id: string, updated: Partial<TeamMember>) => {
-    const nextMembers = teamMembers.map((m) => (m.id === id ? { ...m, ...updated } : m));
-    setTeamMembers(nextMembers);
-    syncToCloud({ teamMembers: nextMembers });
-    showToast("تم التحديث سحابياً", "تم تعديل بيانات عضو الفريق وتحديثها لكل الزوار.", "success");
-  };
-
-  const deleteTeamMember = (id: string) => {
-    const nextMembers = teamMembers.filter((m) => m.id !== id);
-    setTeamMembers(nextMembers);
-    syncToCloud({ teamMembers: nextMembers });
-    showToast("تم الحذف سحابياً", "تمت إزالة العضو من الفريق.", "info");
-  };
-
-  // Services CRUD with Cloud Sync
-  const addService = (service: Omit<ServiceItem, "id">) => {
-    const id = `serv-${Date.now()}`;
-    const nextServices = [...services, { ...service, id }];
-    setServices(nextServices);
-    syncToCloud({ services: nextServices });
-    showToast("تمت الإضافة سحابياً", `تمت إضافة خدمة "${service.titleAr}".`, "success");
-  };
-
-  const updateService = (id: string, updated: Partial<ServiceItem>) => {
-    const nextServices = services.map((s) => (s.id === id ? { ...s, ...updated } : s));
-    setServices(nextServices);
-    syncToCloud({ services: nextServices });
-    showToast("تم التحديث سحابياً", "تم حفظ تعديل الخدمة وتحديثها بالموقع.", "success");
-  };
-
-  const deleteService = (id: string) => {
-    const nextServices = services.filter((s) => s.id !== id);
-    setServices(nextServices);
-    syncToCloud({ services: nextServices });
-    showToast("تم الحذف سحابياً", "تمت إزالة الخدمة.", "info");
-  };
-
-  // Testimonials / Clients Partners CRUD with Cloud Sync
-  const addTestimonial = (test: Omit<TestimonialItem, "id">) => {
-    const id = `test-${Date.now()}`;
-    const nextTestimonials = [...testimonials, { ...test, id }];
-    setTestimonials(nextTestimonials);
-    syncToCloud({ testimonials: nextTestimonials });
-    showToast("تمت الإضافة سحابياً", `تمت إضافة الجهة/العميل "${test.companyAr || test.clientNameAr}".`, "success");
-  };
-
-  const updateTestimonial = (id: string, updated: Partial<TestimonialItem>) => {
-    const nextTestimonials = testimonials.map((t) => (t.id === id ? { ...t, ...updated } : t));
-    setTestimonials(nextTestimonials);
-    syncToCloud({ testimonials: nextTestimonials });
-    showToast("تم التحديث سحابياً", "تم حفظ بيانات الجهة/العميل سحابياً.", "success");
-  };
-
-  const deleteTestimonial = (id: string) => {
-    const nextTestimonials = testimonials.filter((t) => t.id !== id);
-    setTestimonials(nextTestimonials);
-    syncToCloud({ testimonials: nextTestimonials });
-    showToast("تم الحذف سحابياً", "تمت إزالة الجهة من القائمة.", "info");
-  };
-
-  // Project CRUD with Cloud Sync
-  const addProject = (newProj: Omit<Project, "id" | "views" | "likes">) => {
-    const id = `proj-${Date.now()}`;
-    const project: Project = {
-      ...newProj,
-      id,
-      views: 1,
-      likes: 0,
-    };
-    const nextProjects = [project, ...projects];
-    setProjects(nextProjects);
-    syncToCloud({ projects: nextProjects });
-    broadcastNotification(
-      `تم إطلاق نظام جديد: ${project.titleAr}`,
-      `New System Launched: ${project.titleEn}`,
-      project.taglineAr,
-      project.taglineEn,
-      "project_added"
-    );
-    triggerCelebration();
-    showToast("تم نشر المشروع سحابياً!", `تمت إضافة "${project.titleAr}" وسيظهر لكل زوار الموقع فوراً.`, "success");
-  };
-
-  const updateProject = (id: string, updated: Partial<Project>) => {
-    const nextProjects = projects.map((p) => (p.id === id ? { ...p, ...updated } : p));
-    setProjects(nextProjects);
-    syncToCloud({ projects: nextProjects });
-    if (activeProjectDetail?.id === id) {
-      setActiveProjectDetail((prev) => (prev ? { ...prev, ...updated } : null));
+  // =========================================================================
+  // 3. Dynamic Categories Management - Cloud Firestore
+  // =========================================================================
+  const addCategory = async (newCat: Omit<CategoryItem, "id">) => {
+    try {
+      const id = `cat-${Date.now()}`;
+      const category: CategoryItem = {
+        ...newCat,
+        id,
+        key: newCat.key || `cat_${Date.now()}`
+      };
+      await setDoc(doc(db, "categories", id), sanitizeForFirestore(category));
+      showToast("تمت إضافة الفئة سحابياً", `تمت إضافة التصنيف "${newCat.nameAr}" في السحابة بنجاح`, "success");
+    } catch (err) {
+      console.error("Add category error:", err);
+      showToast("خطأ في الحفظ السحابي", "تعذر حفظ التصنيف في السحابة.", "error");
     }
-    showToast("تم التحديث سحابياً", "تم حفظ تعديلات المشروع والأسعار ونشرها لجميع الزوار.", "success");
   };
 
-  const deleteProject = (id: string) => {
-    const nextProjects = projects.filter((p) => p.id !== id);
-    setProjects(nextProjects);
-    syncToCloud({ projects: nextProjects });
-    if (activeProjectDetail?.id === id) {
-      setActiveProjectDetail(null);
+  const updateCategory = async (idOrKey: string, updated: Partial<CategoryItem>) => {
+    try {
+      const target = categories.find((c) => c.id === idOrKey || c.key === idOrKey);
+      const targetId = target ? target.id : idOrKey;
+      await setDoc(doc(db, "categories", targetId), sanitizeForFirestore(updated), { merge: true });
+      showToast("تم تحديث التصنيف سحابياً", "تم حفظ تعديلات الفئة في السحابة بنجاح.", "success");
+    } catch (err) {
+      console.error("Update category error:", err);
+      showToast("خطأ في التحديث السحابي", "تعذر تحديث التصنيف في السحابة.", "error");
     }
-    showToast("تم الحذف سحابياً", "تمت إزالة المشروع بنجاح من قاعدة البيانات السحابية.", "info");
   };
 
-  const toggleFeaturedProject = (id: string) => {
-    const nextProjects = projects.map((p) => (p.id === id ? { ...p, featured: !p.featured } : p));
-    setProjects(nextProjects);
-    syncToCloud({ projects: nextProjects });
+  const deleteCategory = async (idOrKey: string): Promise<boolean> => {
+    try {
+      const target = categories.find((c) => c.id === idOrKey || c.key === idOrKey);
+      const targetId = target ? target.id : idOrKey;
+      await deleteDoc(doc(db, "categories", targetId));
+      showToast("تم الحذف سحابياً", "تمت إزالة التصنيف من السحابة بنجاح.", "info");
+      return true;
+    } catch (err) {
+      console.error("Delete category error:", err);
+      showToast("خطأ في الحذف السحابي", "تعذر حذف التصنيف من السحابة.", "error");
+      return false;
+    }
   };
 
-  const likeProject = (id: string) => {
-    const nextProjects = projects.map((p) => (p.id === id ? { ...p, likes: p.likes + 1 } : p));
-    setProjects(nextProjects);
-    syncToCloud({ projects: nextProjects });
-    showToast("شكراً لك!", "تم تسجيل إعجابك بالنظام سحابياً.", "info");
+  // =========================================================================
+  // 4. Site Settings - Cloud Firestore
+  // =========================================================================
+  const updateSiteSettings = async (settings: Partial<SiteSettings>) => {
+    try {
+      const nextSettings = { ...siteSettings, ...settings };
+      await setDoc(doc(db, "site_settings", "general"), sanitizeForFirestore(nextSettings), { merge: true });
+      showToast("تم التحديث سحابياً", "تم حفظ إعدادات الموقع وهوية المنصة في السحابة ونشرها للجميع بنجاح.", "success");
+    } catch (err) {
+      console.error("Update site settings error:", err);
+      showToast("خطأ في التحديث السحابي", "تعذر حفظ الإعدادات في السحابة.", "error");
+    }
   };
 
-  // Inquiries with Cloud Sync
+  // =========================================================================
+  // 5. Team Members CRUD - Cloud Firestore
+  // =========================================================================
+  const addTeamMember = async (member: Omit<TeamMember, "id">) => {
+    try {
+      const id = `mem-${Date.now()}`;
+      const fullMember: TeamMember = { ...member, id };
+      await setDoc(doc(db, "team_members", id), sanitizeForFirestore(fullMember));
+      showToast("تمت الإضافة سحابياً", `تمت إضافة المهندس/ة ${member.nameAr} في السحابة ونشرها للزوار.`, "success");
+    } catch (err) {
+      console.error("Add team member error:", err);
+      showToast("خطأ في الحفظ السحابي", "تعذر حفظ بيانات عضو الفريق في السحابة.", "error");
+    }
+  };
+
+  const updateTeamMember = async (id: string, updated: Partial<TeamMember>) => {
+    try {
+      await setDoc(doc(db, "team_members", id), sanitizeForFirestore(updated), { merge: true });
+      showToast("تم التحديث سحابياً", "تم تعديل بيانات عضو الفريق في السحابة وتحديثها للزوار.", "success");
+    } catch (err) {
+      console.error("Update team member error:", err);
+      showToast("خطأ في التحديث السحابي", "تعذر تحديث بيانات عضو الفريق.", "error");
+    }
+  };
+
+  const deleteTeamMember = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "team_members", id));
+      showToast("تم الحذف سحابياً", "تمت إزالة العضو من الفريق في السحابة.", "info");
+    } catch (err) {
+      console.error("Delete team member error:", err);
+      showToast("خطأ في الحذف السحابي", "تعذر حذف العضو من السحابة.", "error");
+    }
+  };
+
+  // =========================================================================
+  // 6. Services CRUD - Cloud Firestore
+  // =========================================================================
+  const addService = async (service: Omit<ServiceItem, "id">) => {
+    try {
+      const id = `serv-${Date.now()}`;
+      const fullService: ServiceItem = { ...service, id };
+      await setDoc(doc(db, "services", id), sanitizeForFirestore(fullService));
+      showToast("تمت الإضافة سحابياً", `تمت إضافة خدمة "${service.titleAr}" في السحابة.`, "success");
+    } catch (err) {
+      console.error("Add service error:", err);
+      showToast("خطأ في الحفظ السحابي", "تعذر إضافة الخدمة في السحابة.", "error");
+    }
+  };
+
+  const updateService = async (id: string, updated: Partial<ServiceItem>) => {
+    try {
+      await setDoc(doc(db, "services", id), sanitizeForFirestore(updated), { merge: true });
+      showToast("تم التحديث سحابياً", "تم حفظ تعديل الخدمة في السحابة وتحديثها بالموقع.", "success");
+    } catch (err) {
+      console.error("Update service error:", err);
+      showToast("خطأ في التحديث السحابي", "تعذر تعديل الخدمة.", "error");
+    }
+  };
+
+  const deleteService = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "services", id));
+      showToast("تم الحذف سحابياً", "تمت إزالة الخدمة من السحابة.", "info");
+    } catch (err) {
+      console.error("Delete service error:", err);
+      showToast("خطأ في الحذف السحابي", "تعذر حذف الخدمة.", "error");
+    }
+  };
+
+  // =========================================================================
+  // 7. Testimonials / Clients Partners - Cloud Firestore
+  // =========================================================================
+  const addTestimonial = async (test: Omit<TestimonialItem, "id">) => {
+    try {
+      const id = `test-${Date.now()}`;
+      const fullTest: TestimonialItem = { ...test, id };
+      await setDoc(doc(db, "testimonials", id), sanitizeForFirestore(fullTest));
+      showToast("تمت الإضافة سحابياً", `تمت إضافة الجهة/العميل "${test.companyAr || test.clientNameAr}" في السحابة.`, "success");
+    } catch (err) {
+      console.error("Add testimonial error:", err);
+      showToast("خطأ في الحفظ السحابي", "تعذر حفظ الجهة في السحابة.", "error");
+    }
+  };
+
+  const updateTestimonial = async (id: string, updated: Partial<TestimonialItem>) => {
+    try {
+      await setDoc(doc(db, "testimonials", id), sanitizeForFirestore(updated), { merge: true });
+      showToast("تم التحديث سحابياً", "تم حفظ بيانات الجهة/العميل سحابياً.", "success");
+    } catch (err) {
+      console.error("Update testimonial error:", err);
+      showToast("خطأ في التحديث السحابي", "تعذر تحديث بيانات العميل.", "error");
+    }
+  };
+
+  const deleteTestimonial = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "testimonials", id));
+      showToast("تم الحذف سحابياً", "تمت إزالة الجهة من السحابة بنجاح.", "info");
+    } catch (err) {
+      console.error("Delete testimonial error:", err);
+      showToast("خطأ في الحذف السحابي", "تعذر حذف الجهة من السحابة.", "error");
+    }
+  };
+
+  // =========================================================================
+  // 8. Project CRUD - Cloud Firestore
+  // =========================================================================
+  const addProject = async (newProj: Omit<Project, "id" | "views" | "likes">) => {
+    try {
+      const id = `proj-${Date.now()}`;
+      const project: Project = {
+        ...newProj,
+        id,
+        views: 1,
+        likes: 0,
+      };
+      await setDoc(doc(db, "projects", id), sanitizeForFirestore(project));
+      
+      broadcastNotification(
+        `تم إطلاق نظام جديد: ${project.titleAr}`,
+        `New System Launched: ${project.titleEn}`,
+        project.taglineAr,
+        project.taglineEn,
+        "project_added"
+      );
+      triggerCelebration();
+      showToast("تم نشر المشروع سحابياً!", `تمت إضافة "${project.titleAr}" في السحابة وسيظهر لكل زوار الموقع فوراً.`, "success");
+    } catch (err) {
+      console.error("Add project error:", err);
+      showToast("خطأ في الحفظ السحابي", "تعذر حفظ المشروع في السحابة.", "error");
+    }
+  };
+
+  const updateProject = async (id: string, updated: Partial<Project>) => {
+    try {
+      await setDoc(doc(db, "projects", id), sanitizeForFirestore(updated), { merge: true });
+      if (activeProjectDetail?.id === id) {
+        setActiveProjectDetail((prev) => (prev ? { ...prev, ...updated } : null));
+      }
+      showToast("تم التحديث سحابياً", "تم حفظ تعديلات المشروع والأسعار في السحابة ونشرها لجميع الزوار.", "success");
+    } catch (err) {
+      console.error("Update project error:", err);
+      showToast("خطأ في التحديث السحابي", "تعذر تحديث المشروع في السحابة.", "error");
+    }
+  };
+
+  const deleteProject = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "projects", id));
+      if (activeProjectDetail?.id === id) {
+        setActiveProjectDetail(null);
+      }
+      showToast("تم الحذف سحابياً", "تمت إزالة المشروع بنجاح من قاعدة البيانات السحابية.", "info");
+    } catch (err) {
+      console.error("Delete project error:", err);
+      showToast("خطأ في الحذف السحابي", "تعذر حذف المشروع من السحابة.", "error");
+    }
+  };
+
+  const toggleFeaturedProject = async (id: string) => {
+    const proj = projects.find((p) => p.id === id);
+    if (!proj) return;
+    try {
+      await setDoc(doc(db, "projects", id), { featured: !proj.featured }, { merge: true });
+    } catch (err) {
+      console.error("Toggle featured error:", err);
+    }
+  };
+
+  const likeProject = async (id: string) => {
+    const proj = projects.find((p) => p.id === id);
+    if (!proj) return;
+    try {
+      await setDoc(doc(db, "projects", id), { likes: (proj.likes || 0) + 1 }, { merge: true });
+      showToast("شكراً لك!", "تم تسجيل إعجابك بالنظام سحابياً.", "info");
+    } catch (err) {
+      console.error("Like project error:", err);
+    }
+  };
+
+  // =========================================================================
+  // 9. Inquiries - Cloud Firestore
+  // =========================================================================
   const submitInquiry = async (
     inquiryData: Omit<ClientInquiry, "id" | "createdAt" | "status">
   ): Promise<boolean> => {
     try {
+      const id = `inq-${Date.now()}`;
       const newInquiry: ClientInquiry = {
-        id: `inq-${Date.now()}`,
+        id,
         ...inquiryData,
         createdAt: new Date().toISOString(),
         status: "new",
       };
 
-      const nextInquiries = [newInquiry, ...inquiries];
-      setInquiries(nextInquiries);
-      await syncToCloud({ inquiries: nextInquiries });
+      await setDoc(doc(db, "inquiries", id), sanitizeForFirestore(newInquiry));
 
       broadcastNotification(
         `طلب مشروع جديد من ${inquiryData.name}`,
@@ -787,105 +783,120 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         "success"
       );
       return true;
-    } catch {
-      const fallbackInquiry: ClientInquiry = {
-        id: `inq-${Date.now()}`,
-        ...inquiryData,
-        createdAt: new Date().toISOString(),
-        status: "new",
-      };
-      setInquiries((prev) => [fallbackInquiry, ...prev]);
-      triggerCelebration();
-      showToast("تم حفظ طلبك بنجاح", "سيتواصل معك فريقنا خلال ساعات قليلة.", "success");
-      return true;
+    } catch (err) {
+      console.error("Submit inquiry error:", err);
+      showToast("خطأ في الإرسال", "تعذر حفظ الطلب في السحابة. يرجى المحاولة مرة أخرى.", "error");
+      return false;
     }
   };
 
-  const updateInquiryStatus = (id: string, status: ClientInquiry["status"]) => {
-    const nextInquiries = inquiries.map((inq) => (inq.id === id ? { ...inq, status } : inq));
-    setInquiries(nextInquiries);
-    syncToCloud({ inquiries: nextInquiries });
-    showToast("تم التحديث", `تم تعديل حالة الطلب إلى: ${status}`, "info");
+  const updateInquiryStatus = async (id: string, status: ClientInquiry["status"]) => {
+    try {
+      await setDoc(doc(db, "inquiries", id), { status }, { merge: true });
+      showToast("تم التحديث", `تم تعديل حالة الطلب سحابياً إلى: ${status}`, "info");
+    } catch (err) {
+      console.error("Update inquiry status error:", err);
+    }
   };
 
-  const deleteInquiry = (id: string) => {
-    const nextInquiries = inquiries.filter((i) => i.id !== id);
-    setInquiries(nextInquiries);
-    syncToCloud({ inquiries: nextInquiries });
-    showToast("تم الحذف", "تمت إزالة الطلب من الصندوق سحابياً.", "info");
+  const deleteInquiry = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "inquiries", id));
+      showToast("تم الحذف", "تمت إزالة الطلب من السحابة بنجاح.", "info");
+    } catch (err) {
+      console.error("Delete inquiry error:", err);
+    }
   };
 
-  // Notifications
-  const markAllNotificationsRead = () => {
-    const nextNotifs = notifications.map((n) => ({ ...n, read: true }));
-    setNotifications(nextNotifs);
-    syncToCloud({ notifications: nextNotifs });
+  // =========================================================================
+  // 10. Notifications - Cloud Firestore
+  // =========================================================================
+  const markAllNotificationsRead = async () => {
+    try {
+      for (const n of notifications) {
+        if (!n.read) {
+          await setDoc(doc(db, "notifications", n.id), { read: true }, { merge: true });
+        }
+      }
+    } catch (err) {
+      console.error("Mark all notifications error:", err);
+    }
   };
 
-  const markNotificationRead = (id: string) => {
-    const nextNotifs = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
-    setNotifications(nextNotifs);
-    syncToCloud({ notifications: nextNotifs });
+  const markNotificationRead = async (id: string) => {
+    try {
+      await setDoc(doc(db, "notifications", id), { read: true }, { merge: true });
+    } catch (err) {
+      console.error("Mark notification read error:", err);
+    }
   };
 
-  const broadcastNotification = (
+  const broadcastNotification = async (
     titleAr: string,
     titleEn: string,
     messageAr: string,
     messageEn: string,
     type: NotificationItem["type"] = "update"
   ) => {
-    const newNotif: NotificationItem = {
-      id: `notif-${Date.now()}`,
-      titleAr,
-      titleEn,
-      messageAr,
-      messageEn,
-      type,
-      timestamp: "الآن",
-      read: false,
-    };
+    try {
+      const id = `notif-${Date.now()}`;
+      const newNotif: NotificationItem = {
+        id,
+        titleAr,
+        titleEn,
+        messageAr,
+        messageEn,
+        type,
+        timestamp: "الآن",
+        read: false,
+      };
 
-    const nextNotifs = [newNotif, ...notifications];
-    setNotifications(nextNotifs);
-    syncToCloud({ notifications: nextNotifs });
-    showToast(titleAr, messageAr, type === "project_added" ? "success" : "info");
+      await setDoc(doc(db, "notifications", id), sanitizeForFirestore(newNotif));
+      showToast(titleAr, messageAr, type === "project_added" ? "success" : "info");
+    } catch (err) {
+      console.error("Broadcast notification error:", err);
+    }
   };
 
-  const resetToDefaultData = () => {
-    setProjects(INITIAL_PROJECTS);
-    setInquiries(INITIAL_INQUIRIES);
-    setNotifications(INITIAL_NOTIFICATIONS);
-    setUsers(DEFAULT_USERS);
-    setSiteSettings(DEFAULT_SITE_SETTINGS);
-    setTeamMembers(TEAM_MEMBERS);
-    setServices(INITIAL_SERVICES);
-    setTestimonials(INITIAL_TESTIMONIALS);
-    setCategories(INITIAL_CATEGORIES);
+  // Reset Data to Empty Defaults
+  const resetToDefaultData = async () => {
+    try {
+      // Clear projects from Firestore
+      const projSnap = await getDocs(collection(db, "projects"));
+      for (const d of projSnap.docs) {
+        await deleteDoc(doc(db, "projects", d.id));
+      }
 
-    syncToCloud({
-      projects: INITIAL_PROJECTS,
-      inquiries: INITIAL_INQUIRIES,
-      notifications: INITIAL_NOTIFICATIONS,
-      users: DEFAULT_USERS,
-      siteSettings: DEFAULT_SITE_SETTINGS,
-      teamMembers: TEAM_MEMBERS,
-      services: INITIAL_SERVICES,
-      testimonials: INITIAL_TESTIMONIALS,
-      categories: INITIAL_CATEGORIES
-    });
+      // Clear team members from Firestore
+      const teamSnap = await getDocs(collection(db, "team_members"));
+      for (const d of teamSnap.docs) {
+        await deleteDoc(doc(db, "team_members", d.id));
+      }
 
-    localStorage.removeItem("novacoders_projects_v2");
-    localStorage.removeItem("novacoders_inquiries_v2");
-    localStorage.removeItem("novacoders_notifs_v2");
-    localStorage.removeItem("novacoders_users_list_v2");
-    localStorage.removeItem("novacoders_site_settings_v2");
-    localStorage.removeItem("novacoders_team_members_v2");
-    localStorage.removeItem("novacoders_services_v2");
-    localStorage.removeItem("novacoders_testimonials_v2");
-    localStorage.removeItem("novacoders_categories_v2");
+      // Clear services from Firestore
+      const servSnap = await getDocs(collection(db, "services"));
+      for (const d of servSnap.docs) {
+        await deleteDoc(doc(db, "services", d.id));
+      }
 
-    showToast("تمت استعادة البيانات الافتراضية سحابياً", "تمت إعادة تعيين الموقع للبيانات الافتراضية الأولية وتحديثها للجميع.", "info");
+      // Clear testimonials from Firestore
+      const testSnap = await getDocs(collection(db, "testimonials"));
+      for (const d of testSnap.docs) {
+        await deleteDoc(doc(db, "testimonials", d.id));
+      }
+
+      // Reset site settings
+      await setDoc(doc(db, "site_settings", "general"), sanitizeForFirestore(DEFAULT_SITE_SETTINGS));
+
+      showToast("تمت استعادة التهيئة الافتراضية سحابياً", "تم تفريغ البيانات وتحديث قاعدة البيانات السحابية بنجاح.", "info");
+    } catch (err) {
+      console.error("Reset data error:", err);
+      showToast("خطأ في إعادة التعيين", "تعذر إكمال العملية في السحابة.", "error");
+    }
+  };
+
+  const forceSyncToCloud = async () => {
+    showToast("المزامنة السحابية الحية نشطة", "كافة العمليات تتصل مباشرة بقاعدة البيانات السحابية Firestore في الوقت الفعلي.", "success");
   };
 
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
