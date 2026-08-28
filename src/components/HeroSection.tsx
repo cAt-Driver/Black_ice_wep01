@@ -40,10 +40,10 @@ export const HeroSection: React.FC = () => {
 
   const siteName = (language === "ar" 
     ? (siteSettings.siteNameAr || (siteSettings as any).teamNameAr) 
-    : (siteSettings.siteNameEn || (siteSettings as any).teamNameEn)) || "نوفا كودرز للبرمجيات";
+    : (siteSettings.siteNameEn || (siteSettings as any).teamNameEn)) || (language === "ar" ? "بلاك آيس للبرمجيات" : "Black Ice Software");
   const siteSlogan = (language === "ar" 
     ? (siteSettings.siteSloganAr || (siteSettings as any).taglineAr) 
-    : (siteSettings.siteSloganEn || (siteSettings as any).taglineEn)) || "تطوير تطبيقات الجوال والأنظمة البرمجية";
+    : (siteSettings.siteSloganEn || (siteSettings as any).taglineEn)) || (language === "ar" ? "تطوير تطبيقات الجوال والأنظمة البرمجية" : "Custom Software & Mobile App Development");
 
   const title1 = language === "ar" ? siteSettings.heroTitleLine1Ar : siteSettings.heroTitleLine1En;
   const highlight = language === "ar" ? siteSettings.heroTitleHighlightAr : siteSettings.heroTitleHighlightEn;

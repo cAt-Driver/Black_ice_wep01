@@ -42,10 +42,10 @@ export const Navbar: React.FC = () => {
 
   const brandName = (language === "ar" 
     ? (siteSettings.siteNameAr || (siteSettings as any).teamNameAr) 
-    : (siteSettings.siteNameEn || (siteSettings as any).teamNameEn)) || "نوفا كودرز للبرمجيات";
+    : (siteSettings.siteNameEn || (siteSettings as any).teamNameEn)) || (language === "ar" ? "بلاك آيس للبرمجيات" : "Black Ice Software");
   const tagline = (language === "ar" 
     ? (siteSettings.siteSloganAr || (siteSettings as any).taglineAr) 
-    : (siteSettings.siteSloganEn || (siteSettings as any).taglineEn)) || "حلول برمجية ذكية";
+    : (siteSettings.siteSloganEn || (siteSettings as any).taglineEn)) || (language === "ar" ? "حلول وتطبيقات برمجية ذكية" : "Smart Software Solutions");
 
   // Close dropdown on outside click
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   X, 
   Plus, 
@@ -179,6 +179,13 @@ export const AdminDashboard: React.FC = () => {
   // Site Settings Form State
   const [siteForm, setSiteForm] = useState(siteSettings);
 
+  // Synchronize siteForm whenever siteSettings updates from Firestore
+  useEffect(() => {
+    if (siteSettings) {
+      setSiteForm(siteSettings);
+    }
+  }, [siteSettings]);
+
   // Team Member Form State
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [memberForm, setMemberForm] = useState<Omit<TeamMember, "id">>({
@@ -229,30 +236,30 @@ export const AdminDashboard: React.FC = () => {
   // Project Edit Handlers
   const handleEditProjectClick = (proj: Project) => {
     setEditingProjectId(proj.id);
-    setTitleAr(proj.titleAr);
-    setTitleEn(proj.titleEn);
+    setTitleAr(proj.titleAr || "");
+    setTitleEn(proj.titleEn || "");
     setTaglineAr(proj.taglineAr || "");
     setTaglineEn(proj.taglineEn || "");
-    setDescriptionAr(proj.descriptionAr);
-    setDescriptionEn(proj.descriptionEn);
-    setCategory(proj.category);
-    setTagsInput(proj.tags.join(", "));
-    setCoverImage(proj.coverImage);
-    setGalleryImages(proj.galleryImages && proj.galleryImages.length > 0 ? proj.galleryImages : [proj.coverImage]);
+    setDescriptionAr(proj.descriptionAr || "");
+    setDescriptionEn(proj.descriptionEn || "");
+    setCategory(proj.category || (categories.length > 0 ? categories[0].key : "general"));
+    setTagsInput(proj.tags && Array.isArray(proj.tags) ? proj.tags.join(", ") : "");
+    setCoverImage(proj.coverImage || "");
+    setGalleryImages(proj.galleryImages && proj.galleryImages.length > 0 ? proj.galleryImages : (proj.coverImage ? [proj.coverImage] : []));
     setPricingType(proj.pricingType || "both");
-    setPrice(proj.price || "3,500 ريال");
+    setPrice(proj.price || "");
     setHasDiscount(Boolean(proj.hasDiscount));
     setOriginalPrice(proj.originalPrice || "");
     setDiscountPercent(proj.discountPercent || "");
     setOfferTag(proj.offerTag || "");
-    setAnnualMaintenancePrice(proj.annualMaintenancePrice || "500 ريال / سنوياً");
+    setAnnualMaintenancePrice(proj.annualMaintenancePrice || "");
     setPlans(proj.subscriptionPlans && proj.subscriptionPlans.length > 0 ? proj.subscriptionPlans : []);
-    setSimpleFeaturesInput(proj.simpleFeaturesAr?.join(", ") || "");
+    setSimpleFeaturesInput(proj.simpleFeaturesAr && Array.isArray(proj.simpleFeaturesAr) ? proj.simpleFeaturesAr.join(", ") : "");
     setLiveUrl(proj.liveUrl || "");
     setGithubUrl(proj.githubUrl || "");
-    setClientName(proj.clientName);
-    setCompletionDate(proj.completionDate);
-    setFeatured(proj.featured);
+    setClientName(proj.clientName || "");
+    setCompletionDate(proj.completionDate || "");
+    setFeatured(Boolean(proj.featured));
 
     setActiveTab("addEditProject");
   };
@@ -265,23 +272,23 @@ export const AdminDashboard: React.FC = () => {
     setTaglineEn("");
     setDescriptionAr("");
     setDescriptionEn("");
-    setCategory("pos_accounting");
-    setTagsInput("محاسبة, فواتير, كاشير");
-    setCoverImage("https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80");
-    setGalleryImages(["https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80"]);
+    setCategory(categories.length > 0 ? categories[0].key : "general");
+    setTagsInput("");
+    setCoverImage("");
+    setGalleryImages([]);
     setPricingType("both");
-    setPrice("3,500 ريال");
-    setHasDiscount(true);
-    setOriginalPrice("5,000 ريال");
-    setDiscountPercent("30% خصم");
-    setOfferTag("🔥 عرض خاص لفترة محدودة");
-    setAnnualMaintenancePrice("500 ريال / سنوياً (شامل التحديثات والدعم الفني)");
+    setPrice("");
+    setHasDiscount(false);
+    setOriginalPrice("");
+    setDiscountPercent("");
+    setOfferTag("");
+    setAnnualMaintenancePrice("");
     setPlans([]);
-    setSimpleFeaturesInput("واجهة عربية سهلة, طباعة إلكترونية, تطبيق جوال");
-    setLiveUrl("https://demo.novacoders.io");
+    setSimpleFeaturesInput("");
+    setLiveUrl("");
     setGithubUrl("");
-    setClientName("شركة أعمال تجارية");
-    setCompletionDate("2026-03");
+    setClientName("");
+    setCompletionDate("");
     setFeatured(false);
   };
 
@@ -972,11 +979,24 @@ export const AdminDashboard: React.FC = () => {
                       onChange={(e) => setCategory(e.target.value as ProjectCategory)}
                       className="w-full py-2.5 px-3 text-xs text-white bg-slate-900 border border-slate-700 rounded-xl focus:border-blue-500 focus:outline-none font-bold text-sky-300"
                     >
-                      {categories.map((cat) => (
-                        <option key={cat.key} value={cat.key}>
-                          {cat.nameAr} ({cat.nameEn})
-                        </option>
-                      ))}
+                      {categories.length > 0 ? (
+                        categories.map((cat) => (
+                          <option key={cat.key} value={cat.key}>
+                            {cat.nameAr} ({cat.nameEn})
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="pos_accounting">{language === "ar" ? "أنظمة محاسبية وكاشير (POS & ERP)" : "POS & Accounting"}</option>
+                          <option value="ecommerce_stores">{language === "ar" ? "متاجر إلكترونية وتطبيقات (E-Commerce)" : "E-Commerce"}</option>
+                          <option value="delivery_logistics">{language === "ar" ? "تطبيقات توصيل وشحن (Delivery)" : "Delivery & Logistics"}</option>
+                          <option value="clinic_medical">{language === "ar" ? "إدارة عيادات ومراكز طبية (Medical)" : "Medical & Clinics"}</option>
+                          <option value="real_estate">{language === "ar" ? "عقارات وحجوزات (Real Estate)" : "Real Estate"}</option>
+                          <option value="school_lms">{language === "ar" ? "منصات تعليمية ومدارس (LMS)" : "Education & LMS"}</option>
+                          <option value="custom_business">{language === "ar" ? "أنظمة إدارية مخصصة (Custom Business)" : "Custom Systems"}</option>
+                          <option value="general">{language === "ar" ? "عام / متنوع (General)" : "General"}</option>
+                        </>
+                      )}
                     </select>
                   </div>
 

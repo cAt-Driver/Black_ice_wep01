@@ -477,6 +477,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id,
         createdAt: new Date().toISOString(),
       };
+      setUsers((prev) => [...prev, user]);
       await setDoc(doc(db, "users", id), sanitizeForFirestore(user));
       showToast("تمت الإضافة سحابياً", `تمت إضافة المستخدم ${newUser.name} بنجاح إلى السحابة`, "success");
     } catch (err) {
@@ -487,6 +488,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateUser = async (id: string, updated: Partial<AppUser>) => {
     try {
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...updated } : u)));
       await setDoc(doc(db, "users", id), sanitizeForFirestore(updated), { merge: true });
       showToast("تم التحديث سحابياً", "تم حفظ بيانات المستخدم في السحابة بنجاح.", "success");
     } catch (err) {
@@ -501,6 +503,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
     try {
+      setUsers((prev) => prev.filter((u) => u.id !== id));
       await deleteDoc(doc(db, "users", id));
       showToast("تم الحذف سحابياً", "تمت إزالة المستخدم من السحابة بنجاح.", "info");
       return true;
@@ -522,6 +525,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         id,
         key: newCat.key || `cat_${Date.now()}`
       };
+      setCategories((prev) => [...prev, category]);
       await setDoc(doc(db, "categories", id), sanitizeForFirestore(category));
       showToast("تمت إضافة الفئة سحابياً", `تمت إضافة التصنيف "${newCat.nameAr}" في السحابة بنجاح`, "success");
     } catch (err) {
@@ -534,6 +538,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const target = categories.find((c) => c.id === idOrKey || c.key === idOrKey);
       const targetId = target ? target.id : idOrKey;
+      setCategories((prev) => prev.map((c) => (c.id === targetId || c.key === idOrKey ? { ...c, ...updated } : c)));
       await setDoc(doc(db, "categories", targetId), sanitizeForFirestore(updated), { merge: true });
       showToast("تم تحديث التصنيف سحابياً", "تم حفظ تعديلات الفئة في السحابة بنجاح.", "success");
     } catch (err) {
@@ -546,6 +551,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const target = categories.find((c) => c.id === idOrKey || c.key === idOrKey);
       const targetId = target ? target.id : idOrKey;
+      setCategories((prev) => prev.filter((c) => c.id !== targetId && c.key !== idOrKey));
       await deleteDoc(doc(db, "categories", targetId));
       showToast("تم الحذف سحابياً", "تمت إزالة التصنيف من السحابة بنجاح.", "info");
       return true;
@@ -562,6 +568,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateSiteSettings = async (settings: Partial<SiteSettings>) => {
     try {
       const nextSettings = { ...siteSettings, ...settings };
+      setSiteSettings(nextSettings);
       await setDoc(doc(db, "site_settings", "general"), sanitizeForFirestore(nextSettings), { merge: true });
       showToast("تم التحديث سحابياً", "تم حفظ إعدادات الموقع وهوية المنصة في السحابة ونشرها للجميع بنجاح.", "success");
     } catch (err) {
@@ -577,6 +584,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const id = `mem-${Date.now()}`;
       const fullMember: TeamMember = { ...member, id };
+      setTeamMembers((prev) => [...prev, fullMember]);
       await setDoc(doc(db, "team_members", id), sanitizeForFirestore(fullMember));
       showToast("تمت الإضافة سحابياً", `تمت إضافة المهندس/ة ${member.nameAr} في السحابة ونشرها للزوار.`, "success");
     } catch (err) {
@@ -587,6 +595,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateTeamMember = async (id: string, updated: Partial<TeamMember>) => {
     try {
+      setTeamMembers((prev) => prev.map((m) => (m.id === id ? { ...m, ...updated } : m)));
       await setDoc(doc(db, "team_members", id), sanitizeForFirestore(updated), { merge: true });
       showToast("تم التحديث سحابياً", "تم تعديل بيانات عضو الفريق في السحابة وتحديثها للزوار.", "success");
     } catch (err) {
@@ -597,6 +606,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteTeamMember = async (id: string) => {
     try {
+      setTeamMembers((prev) => prev.filter((m) => m.id !== id));
       await deleteDoc(doc(db, "team_members", id));
       showToast("تم الحذف سحابياً", "تمت إزالة العضو من الفريق في السحابة.", "info");
     } catch (err) {
@@ -612,6 +622,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const id = `serv-${Date.now()}`;
       const fullService: ServiceItem = { ...service, id };
+      setServices((prev) => [...prev, fullService]);
       await setDoc(doc(db, "services", id), sanitizeForFirestore(fullService));
       showToast("تمت الإضافة سحابياً", `تمت إضافة خدمة "${service.titleAr}" في السحابة.`, "success");
     } catch (err) {
@@ -622,6 +633,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateService = async (id: string, updated: Partial<ServiceItem>) => {
     try {
+      setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...updated } : s)));
       await setDoc(doc(db, "services", id), sanitizeForFirestore(updated), { merge: true });
       showToast("تم التحديث سحابياً", "تم حفظ تعديل الخدمة في السحابة وتحديثها بالموقع.", "success");
     } catch (err) {
@@ -632,6 +644,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteService = async (id: string) => {
     try {
+      setServices((prev) => prev.filter((s) => s.id !== id));
       await deleteDoc(doc(db, "services", id));
       showToast("تم الحذف سحابياً", "تمت إزالة الخدمة من السحابة.", "info");
     } catch (err) {
@@ -647,6 +660,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const id = `test-${Date.now()}`;
       const fullTest: TestimonialItem = { ...test, id };
+      setTestimonials((prev) => [...prev, fullTest]);
       await setDoc(doc(db, "testimonials", id), sanitizeForFirestore(fullTest));
       showToast("تمت الإضافة سحابياً", `تمت إضافة الجهة/العميل "${test.companyAr || test.clientNameAr}" في السحابة.`, "success");
     } catch (err) {
@@ -657,6 +671,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateTestimonial = async (id: string, updated: Partial<TestimonialItem>) => {
     try {
+      setTestimonials((prev) => prev.map((t) => (t.id === id ? { ...t, ...updated } : t)));
       await setDoc(doc(db, "testimonials", id), sanitizeForFirestore(updated), { merge: true });
       showToast("تم التحديث سحابياً", "تم حفظ بيانات الجهة/العميل سحابياً.", "success");
     } catch (err) {
@@ -667,6 +682,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteTestimonial = async (id: string) => {
     try {
+      setTestimonials((prev) => prev.filter((t) => t.id !== id));
       await deleteDoc(doc(db, "testimonials", id));
       showToast("تم الحذف سحابياً", "تمت إزالة الجهة من السحابة بنجاح.", "info");
     } catch (err) {
@@ -687,6 +703,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         views: 1,
         likes: 0,
       };
+      setProjects((prev) => [project, ...prev]);
       await setDoc(doc(db, "projects", id), sanitizeForFirestore(project));
       
       broadcastNotification(
@@ -706,10 +723,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateProject = async (id: string, updated: Partial<Project>) => {
     try {
-      await setDoc(doc(db, "projects", id), sanitizeForFirestore(updated), { merge: true });
+      setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...updated } : p)));
       if (activeProjectDetail?.id === id) {
         setActiveProjectDetail((prev) => (prev ? { ...prev, ...updated } : null));
       }
+      await setDoc(doc(db, "projects", id), sanitizeForFirestore(updated), { merge: true });
       showToast("تم التحديث سحابياً", "تم حفظ تعديلات المشروع والأسعار في السحابة ونشرها لجميع الزوار.", "success");
     } catch (err) {
       console.error("Update project error:", err);
@@ -719,10 +737,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteProject = async (id: string) => {
     try {
-      await deleteDoc(doc(db, "projects", id));
+      setProjects((prev) => prev.filter((p) => p.id !== id));
       if (activeProjectDetail?.id === id) {
         setActiveProjectDetail(null);
       }
+      await deleteDoc(doc(db, "projects", id));
       showToast("تم الحذف سحابياً", "تمت إزالة المشروع بنجاح من قاعدة البيانات السحابية.", "info");
     } catch (err) {
       console.error("Delete project error:", err);

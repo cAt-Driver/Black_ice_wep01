@@ -36,8 +36,8 @@ export const DEFAULT_USERS: AppUser[] = [
 ];
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
-  siteNameAr: "نوفا كودرز للبرمجيات والحلول الرقمية",
-  siteNameEn: "NovaCoders Software Studio",
+  siteNameAr: "بلاك آيس للبرمجيات والحلول الرقمية",
+  siteNameEn: "Black Ice Software Studio",
   siteSloganAr: "تطوير تطبيقات الجوال، المتاجر الإلكترونية، والأنظمة المحاسبية والإدارية بأعلى جودة وأفضل الأسعار",
   siteSloganEn: "Smart Mobile Apps, E-Commerce Stores & Business Software Solutions",
   logoUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=120&q=80",
@@ -53,16 +53,16 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   heroSubtitleEn: "Whether you run an online store, restaurant, clinic, enterprise, or startup, we provide ready-to-launch software available for one-time ownership or flexible subscriptions with dedicated maintenance.",
   contactWhatsApp: "+966501234567",
   contactPhone: "+966 50 123 4567",
-  contactEmail: "contact@novacoders.io",
-  contactAddressAr: "الرياض - المملكة العربية السعودية (خدماتنا متوفرة لجميع الدول العربية والعالم)",
-  contactAddressEn: "Riyadh, Saudi Arabia • Global Delivery Across All Arab & International Markets",
+  contactEmail: "contact@blackice.io",
+  contactAddressAr: "المملكة العربية السعودية (خدماتنا متوفرة لجميع الدول العربية والعالم)",
+  contactAddressEn: "Saudi Arabia • Global Delivery Across All Arab & International Markets",
   socialLinks: {
     whatsapp: "https://wa.me/966501234567",
-    twitter: "https://x.com/novacoders",
-    linkedin: "https://linkedin.com/company/novacoders",
-    github: "https://github.com/novacoders",
-    telegram: "https://t.me/novacoders",
-    instagram: "https://instagram.com/novacoders",
+    twitter: "https://x.com/blackice",
+    linkedin: "https://linkedin.com/company/blackice",
+    github: "https://github.com/blackice",
+    telegram: "https://t.me/blackice",
+    instagram: "https://instagram.com/blackice",
   },
   announcement: {
     enabled: true,

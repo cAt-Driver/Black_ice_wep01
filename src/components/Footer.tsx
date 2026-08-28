@@ -13,10 +13,10 @@ export const Footer: React.FC = () => {
 
   const brandName = (language === "ar" 
     ? (siteSettings.siteNameAr || siteSettings.teamNameAr) 
-    : (siteSettings.siteNameEn || siteSettings.teamNameEn)) || "نوفا كودرز للبرمجيات";
+    : (siteSettings.siteNameEn || siteSettings.teamNameEn)) || (language === "ar" ? "بلاك آيس للبرمجيات" : "Black Ice Software");
   const tagline = (language === "ar" 
     ? (siteSettings.siteSloganAr || siteSettings.taglineAr) 
-    : (siteSettings.siteSloganEn || siteSettings.taglineEn)) || "حلول برمجية ذكية";
+    : (siteSettings.siteSloganEn || siteSettings.taglineEn)) || (language === "ar" ? "حلول وتطبيقات برمجية ذكية" : "Smart Software Solutions");
   const description = (language === "ar" 
     ? (siteSettings.heroSubtitleAr || siteSettings.heroDescriptionAr) 
     : (siteSettings.heroSubtitleEn || siteSettings.heroDescriptionEn)) || "";

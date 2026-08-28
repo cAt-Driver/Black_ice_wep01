@@ -10,8 +10,8 @@ interface Translations {
 
 export const DICTIONARY: Translations = {
   // Navigation & Branding
-  teamBrand: { ar: "نوفا كودرز", en: "NovaCoders" },
-  teamSubBrand: { ar: "استوديو هندسة البرمجيات والأنظمة الموزعة", en: "Software Engineering & Cloud Systems Studio" },
+  teamBrand: { ar: "بلاك آيس", en: "Black Ice" },
+  teamSubBrand: { ar: "استوديو هندسة البرمجيات والحلول الرقمية", en: "Software Engineering & Digital Solutions Studio" },
   navProjects: { ar: "أعمالنا والأنظمة", en: "Portfolio & Systems" },
   navServices: { ar: "الخدمات الهندسية", en: "Engineering Capabilities" },
   navTechStack: { ar: "التقنيات والمعمارية", en: "Tech & Architecture" },
@@ -122,7 +122,7 @@ export const DICTIONARY: Translations = {
 
   // Team Member Login Modal
   teamLoginTitle: { ar: "بوابة أعضاء الفريق الهندسي", en: "Engineering Team Portal" },
-  teamLoginSubtitle: { ar: "تسجيل دخول مخصص لأعضاء فريق NovaCoders لإدارة المشاريع، نشر الأنظمة، وتحديث دراسات الحالة", en: "Restricted portal for NovaCoders engineers to publish, update systems, and broadcast live alerts." },
+  teamLoginSubtitle: { ar: "تسجيل دخول مخصص لإدارة المشاريع، نشر الأنظمة، وتحديث المحتوى", en: "Restricted portal for authorized team members to publish, update systems, and broadcast live alerts." },
   loginEmailPlaceholder: { ar: "البريد الإلكتروني للفريق", en: "Team Member Email" },
   loginPasswordPlaceholder: { ar: "كلمة المرور أو رمز المرور", en: "Access Passcode" },
   loginBtn: { ar: "دخول لوحة التحكم", en: "Authenticate & Enter Workspace" },
@@ -153,7 +153,7 @@ export const DICTIONARY: Translations = {
   applyAiToForm: { ar: "تطبيق المواصفات في نموذج المشروع", en: "Apply to Project Form" },
 
   // Footer
-  footerRights: { ar: "جميع الحقوق محفوظة © 2026 NovaCoders. تم البناء بأعلى معايير هندسة البرمجيات.", en: "All Rights Reserved © 2026 NovaCoders. Engineered with precision & modern cloud standards." },
+  footerRights: { ar: "جميع الحقوق محفوظة © 2026. تم البناء بأعلى معايير هندسة البرمجيات.", en: "All Rights Reserved © 2026. Engineered with precision & modern cloud standards." },
   footerTagline: { ar: "فريق برمجي يطور أنظمة ترتقي بمستقبل الصناعة الرقمية.", en: "Engineering software systems that elevate the digital enterprise." },
 };
 
