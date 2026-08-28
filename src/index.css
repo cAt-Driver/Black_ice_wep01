@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #060a14;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #1e293b;
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+body {
+  background-color: #050914;
+  color: #f8fafc;
+  font-family: 'Plus Jakarta Sans', 'IBM Plex Sans Arabic', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+

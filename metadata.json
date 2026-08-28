@@ -1,0 +1,6 @@
+{
+  "name": "NovaCoders - Engineering Team Portfolio & Portal",
+  "description": "منصة احترافية متطورة لعرض مشاريع وأنظمة الفريق البرمجي مع لوحة تحكم لإدارة الأعمال، نظام إشعارات فوري، ودعم كامل للغات المتعددة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
