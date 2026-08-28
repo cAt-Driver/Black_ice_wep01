@@ -1185,47 +1185,179 @@ export const AdminDashboard: React.FC = () => {
                   <span>{language === "ar" ? "3. صور صفحات وشاشات المشروع (Gallery Screenshots)" : "3. Screenshots & Page Gallery"}</span>
                 </h4>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-200 mb-1">
-                    {language === "ar" ? "رابط الصورة الرئيسية للغلاف (Cover Image)" : "Cover Image URL"} *
+                {/* Cover Image Selection (Upload from device or URL or Presets) */}
+                <div className="p-4 rounded-2xl bg-[#070c18] border border-blue-500/30 space-y-4">
+                  <label className="block text-xs font-bold text-sky-400 uppercase tracking-wider">
+                    {language === "ar" ? "الصورة الرئيسية لغلاف المشروع (اختر من جهازك، رابط مباشر، أو نماذج جاهزة):" : "Project Cover Image (Upload from device / URL / Templates):"} *
                   </label>
-                  <input
-                    type="url"
-                    required
-                    value={coverImage}
-                    onChange={(e) => setCoverImage(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full py-2.5 px-3 text-xs text-white bg-slate-900 border border-slate-700 rounded-xl focus:border-blue-500 focus:outline-none font-mono"
-                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                    {/* Cover Preview */}
+                    <div className="md:col-span-4 flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-900/80 border border-slate-800 text-center">
+                      <div className="relative w-full h-32 rounded-xl overflow-hidden border-2 border-sky-400/50 shadow-lg shadow-blue-500/20 bg-slate-950">
+                        {coverImage ? (
+                          <img
+                            src={coverImage}
+                            alt="Cover Preview"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-500">
+                            <ImageIcon className="w-8 h-8" />
+                          </div>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-400 mt-2">
+                        {language === "ar" ? "معاينة صورة الغلاف الأساسية" : "Live Cover Preview"}
+                      </span>
+                    </div>
+
+                    {/* Upload Controls */}
+                    <div className="md:col-span-8 space-y-3">
+                      {/* File Upload Zone */}
+                      <label className="flex items-center gap-3 p-3.5 border-2 border-dashed border-blue-500/40 hover:border-sky-400 rounded-xl bg-blue-950/20 hover:bg-blue-950/40 cursor-pointer transition-all group">
+                        <div className="w-10 h-10 rounded-xl bg-blue-600/30 border border-blue-500/40 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform shrink-0">
+                          <Upload className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-sky-300">
+                            {language === "ar" ? "اضغط لاختيار صورة الغلاف من هاتفك أو جهازك" : "Upload cover image from your phone / computer"}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {language === "ar" ? "يمكنك اختيار أي صورة من المعرض أو ملفات الكمبيوتر" : "Select PNG, JPG, or WebP files"}
+                          </div>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const res = ev.target?.result as string;
+                                if (res) {
+                                  setCoverImage(res);
+                                  // Also add to gallery if gallery only has default or is empty
+                                  setGalleryImages((prev) => prev.length === 0 ? [res] : prev);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+
+                      {/* URL input */}
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          required
+                          value={coverImage}
+                          onChange={(e) => setCoverImage(e.target.value)}
+                          placeholder={language === "ar" ? "أو ضع رابط صورة مباشر (URL)..." : "Or enter direct image URL..."}
+                          className="w-full py-2 px-3 text-xs text-white bg-slate-950 border border-slate-700 rounded-xl font-mono focus:border-sky-400 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Quick preset banners */}
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span className="text-[11px] text-slate-400">{language === "ar" ? "أو نماذج جاهزة:" : "Or ready covers:"}</span>
+                        {[
+                          { label: "كاشير ونقاط بيع", url: "https://images.unsplash.com/photo-1556742049-0a67e5572263?auto=format&fit=crop&w=1200&q=80" },
+                          { label: "برنامج محاسبة", url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80" },
+                          { label: "تطبيق متجر", url: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=80" },
+                          { label: "إدارة مطاعم", url: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80" },
+                        ].map((preset, pidx) => (
+                          <button
+                            key={pidx}
+                            type="button"
+                            onClick={() => setCoverImage(preset.url)}
+                            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[10px] text-sky-300 font-semibold border border-slate-700"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Screenshots List & Add */}
-                <div className="space-y-3">
-                  <label className="block text-xs font-semibold text-slate-200">
-                    {language === "ar" ? "صور صفحات وشاشات المشروع المعروضة للزبائن:" : "Project Screens & Page Screenshots:"}
-                  </label>
+                {/* Screenshots List & Device Upload for Screenshots */}
+                <div className="p-4 rounded-2xl bg-[#070c18] border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-white">
+                      {language === "ar" ? "صور صفحات وشاشات المشروع المعروضة للزبائن (معرض الشاشات):" : "Project Screens & Page Screenshots:"}
+                    </label>
+                    <span className="text-[11px] text-sky-400 font-mono">
+                      {galleryImages.length} {language === "ar" ? "صور مضافة" : "screens"}
+                    </span>
+                  </div>
 
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={newGalleryUrl}
-                      onChange={(e) => setNewGalleryUrl(e.target.value)}
-                      placeholder="أدخل رابط صورة شاشة إضافية للمشروع..."
-                      className="flex-1 py-2 px-3 text-xs text-white bg-slate-900 border border-slate-700 rounded-xl focus:border-blue-500 focus:outline-none font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleAddGalleryImage}
-                      className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-all flex items-center gap-1.5"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>{language === "ar" ? "إضافة صورة" : "Add Image"}</span>
-                    </button>
+                  {/* Multi-file upload from device button */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="flex items-center gap-3 p-3 border border-dashed border-sky-500/50 hover:border-sky-400 rounded-xl bg-sky-950/20 hover:bg-sky-950/40 cursor-pointer transition-all">
+                      <div className="w-8 h-8 rounded-lg bg-sky-600/30 border border-sky-500/40 flex items-center justify-center text-sky-300 shrink-0">
+                        <Upload className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-sky-300">
+                          {language === "ar" ? "رفع شاشات إضافية من جهازك" : "Upload screen shots from device"}
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                          {language === "ar" ? "يمكنك اختيار عدة صور دفعة واحدة" : "Select multiple images"}
+                        </div>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          const files = e.target.files;
+                          if (files && files.length > 0) {
+                            Array.from(files).forEach((file) => {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const res = ev.target?.result as string;
+                                if (res) {
+                                  setGalleryImages((prev) => [...prev, res]);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            });
+                          }
+                        }}
+                      />
+                    </label>
+
+                    {/* Or URL input */}
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="url"
+                        value={newGalleryUrl}
+                        onChange={(e) => setNewGalleryUrl(e.target.value)}
+                        placeholder={language === "ar" ? "أو أدخل رابط صورة شاشة..." : "Or enter screen image URL..."}
+                        className="flex-1 py-2.5 px-3 text-xs text-white bg-slate-900 border border-slate-700 rounded-xl focus:border-blue-500 focus:outline-none font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddGalleryImage}
+                        className="px-3.5 py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl transition-all flex items-center gap-1.5 shrink-0"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>{language === "ar" ? "إضافة" : "Add"}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Preset Sample Gallery Images Helper */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    <span className="text-[11px] text-slate-400">{language === "ar" ? "أو أضف نماذج شاشات بنقرة واحدة:" : "Or pick templates:"}</span>
+                    <span className="text-[11px] text-slate-400">{language === "ar" ? "نماذج جاهزة سريعة:" : "Quick samples:"}</span>
                     <button
                       type="button"
                       onClick={() => setGalleryImages((prev) => [...prev, "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1200&q=80"])}
@@ -2636,15 +2768,50 @@ export const AdminDashboard: React.FC = () => {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-200 mb-1">رابط صورة العميل أو الشعار</label>
-                      <input
-                        type="url"
-                        value={testimonialForm.avatar}
-                        onChange={(e) => setTestimonialForm({ ...testimonialForm, avatar: e.target.value })}
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full py-2 px-3 text-xs text-white bg-slate-950 border border-slate-700 rounded-xl font-mono"
-                      />
+                    <div className="sm:col-span-2 p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                      <label className="block text-xs font-semibold text-teal-300">
+                        {language === "ar" ? "صورة العميل أو شعار الشركة (رفع من الجهاز أو رابط):" : "Client Avatar / Company Logo:"}
+                      </label>
+                      <div className="flex flex-col sm:flex-row items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 shrink-0">
+                          {testimonialForm.avatar ? (
+                            <img src={testimonialForm.avatar} alt="Client" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-600">
+                              <Building className="w-6 h-6" />
+                            </div>
+                          )}
+                        </div>
+                        <label className="flex items-center gap-2 px-3 py-2 border border-dashed border-teal-500/40 hover:border-teal-400 rounded-xl bg-teal-950/20 hover:bg-teal-950/40 cursor-pointer transition-all text-xs text-teal-300 font-semibold">
+                          <Upload className="w-4 h-4" />
+                          <span>{language === "ar" ? "رفع صورة من جهازك" : "Upload from device"}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  const res = ev.target?.result as string;
+                                  if (res) {
+                                    setTestimonialForm((prev) => ({ ...prev, avatar: res }));
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                        <input
+                          type="url"
+                          value={testimonialForm.avatar}
+                          onChange={(e) => setTestimonialForm({ ...testimonialForm, avatar: e.target.value })}
+                          placeholder="أو رابط مباشر..."
+                          className="flex-1 w-full py-2 px-3 text-xs text-white bg-slate-900 border border-slate-700 rounded-xl font-mono"
+                        />
+                      </div>
                     </div>
 
                     <div className="sm:col-span-2">
